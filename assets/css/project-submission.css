@@ -1,0 +1,205 @@
+/* Hide LearnDash default quiz elements */
+.learndash-wrapper .wpProQuiz_content,
+.learndash-wrapper .ld-quiz-wrapper,
+.learndash-wrapper .ld-quiz-content,
+.learndash-wrapper .wpProQuiz_header,
+.learndash-wrapper .ld-quiz-header,
+.learndash-wrapper .ld-quiz-start,
+.learndash-wrapper .ld-start-quiz-wrapper,
+.learndash-wrapper .ld-quiz-start-wrapper,
+.wpProQuiz_content .wpProQuiz_header,
+.wpProQuiz_content .wpProQuiz_catOverview,
+.wpProQuiz_content .wpProQuiz_text,
+.wpProQuiz_content .wpProQuiz_button,
+.learndash-quiz-start,
+.ld-button.ld-quiz-start-button,
+.ld-quiz-start .ld-quiz-start-button,
+.sfwd-quiz .ld-quiz-wrapper,
+.sfwd-quiz .learndash-quiz-wrapper,
+.entry-content .wpProQuiz_content,
+.entry-content .ld-quiz-wrapper {
+    display: none !important;
+}
+
+/* Main containers */
+.ldag-submission,
+.ldag-completion {
+    max-width: 800px;
+    margin: 20px 0;
+    padding: 20px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.ldag-submission h2,
+.ldag-completion h2 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 24px;
+}
+
+/* Progress status */
+.ldag-progress {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 20px 0;
+}
+
+.ldag-progress h4 {
+    margin: 0 0 10px 0;
+    color: #856404;
+}
+
+.ldag-progress p {
+    margin: 5px 0;
+}
+
+/* Completion status */
+.ldag-completion {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.ldag-stats p {
+    margin: 8px 0;
+    font-size: 16px;
+}
+
+.ldag-next-lesson {
+    margin-top: 20px;
+}
+
+.ldag-next-btn {
+    font-size: 16px;
+    padding: 12px 24px;
+}
+
+/* Upload area */
+.ldag-upload-area {
+    border: 2px dashed #007cba;
+    padding: 40px;
+    text-align: center;
+    margin: 20px 0;
+    border-radius: 8px;
+    background: #f0f6fc;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.ldag-upload-area:hover {
+    background: #e6f3ff;
+    border-color: #005a87;
+}
+
+.ldag-upload-area.dragover {
+    background: #e6f3ff;
+    border-color: #005a87;
+    transform: scale(1.02);
+}
+
+.ldag-upload-area p {
+    font-size: 18px;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+/* File info */
+.ldag-file-info {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 15px 0;
+    border-left: 4px solid #007cba;
+}
+
+.ldag-file-info p {
+    margin: 0;
+    font-size: 16px;
+}
+
+#ldag-file-name {
+    font-weight: 600;
+    color: #007cba;
+}
+
+/* Actions */
+.ldag-actions {
+    text-align: center;
+    margin: 20px 0;
+}
+
+#ldag-submit-project {
+    font-size: 16px;
+    padding: 12px 24px;
+    min-width: 200px;
+}
+
+#ldag-submit-project:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Status messages */
+.ldag-status {
+    padding: 15px;
+    border-radius: 5px;
+    margin: 20px 0;
+    text-align: center;
+}
+
+.ldag-status.processing {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+}
+
+.ldag-status.success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.ldag-status.error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.ldag-status.neutral {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    color: #495057;
+}
+
+.ldag-message {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .ldag-submission,
+    .ldag-completion {
+        margin: 10px;
+        padding: 15px;
+    }
+    
+    .ldag-upload-area {
+        padding: 30px 20px;
+    }
+    
+    .ldag-upload-area p {
+        font-size: 16px;
+    }
+    
+    #ldag-submit-project,
+    .ldag-next-btn {
+        width: 100%;
+        margin-top: 15px;
+    }
+}
