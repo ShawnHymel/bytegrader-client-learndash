@@ -144,6 +144,18 @@
     cursor: not-allowed;
 }
 
+.ldag-next-lesson-bottom {
+    text-align: right;
+    margin-top: 0;
+    padding-top: 15px;
+    border-top: 1px solid #ddd;
+}
+
+.ldag-next-btn.ld-button {
+    font-size: 13px !important;
+    padding: 6px 12px !important;
+}
+
 /* Status messages */
 .ldag-status {
     padding: 15px;

@@ -201,18 +201,20 @@ class LearnDashAutograderQuiz {
         
         // Branch 1: No submissions yet
         if ($attempt_count === 0) {
-            // Just show submission form
             $content .= $this->render_submission_form($quiz_id);
         }
+        
         // Branch 2: Has submissions but hasn't passed
         else if ($best_score < $passing_grade) {
             $content .= $this->render_progress_status($best_score, $passing_grade, $attempt_count, false);
             $content .= $this->render_submission_form($quiz_id);
         }
+        
         // Branch 3: Has passed
         else {
+            $next_lesson_url = $this->get_next_lesson_url($quiz_id);
             $content .= $this->render_completion_status($best_score, $passing_grade, $attempt_count, $quiz_id);
-            $content .= $this->render_submission_form($quiz_id);
+            $content .= $this->render_submission_form($quiz_id, true, $next_lesson_url);
         }
         
         return $content;
@@ -228,42 +230,47 @@ class LearnDashAutograderQuiz {
     }
     
     private function render_completion_status($best_score, $passing_grade, $attempt_count, $quiz_id) {
-        $next_lesson_url = $this->get_next_lesson_url($quiz_id);
-        $next_button = $next_lesson_url 
-            ? '<a href="' . esc_url($next_lesson_url) . '" class="button button-primary ldag-next-btn">Next Lesson →</a>'
-            : '<p><em>Course completed!</em></p>';
-        
         return '<div class="ldag-completion">
                     <h4>✅ Assignment Completed Successfully!</h4>
                     <p><strong>Best Score:</strong> ' . $best_score . '% (Passing: ' . $passing_grade . '%)</p>
                     <p><strong>Attempts:</strong> ' . $attempt_count . '</p>
-                    <p>You may continue to the next lesson, but feel free to submit again to improve your score.</p>
-                    <div class="ldag-next-lesson">' . $next_button . '</div>
+                    <p>You may continue to the next lesson, but feel free to submit again to improve your score (max is 100%).</p>
                 </div>';
     }
     
-    private function render_submission_form($quiz_id) {
-        return '<div class="ldag-submission">
-                    <h3>📁 Project Submission</h3>
-                    <div class="ldag-upload-area">
-                        <p>📤 Drop your project file here or click to browse</p>
-                        <input type="file" id="ldag-project-file" accept=".zip,.tar.gz,.tar" style="display: none;" />
-                        <button type="button" class="button button-primary button-large" id="ldag-choose-file">
-                            Choose Project File
-                        </button>
-                    </div>
-                    <div class="ldag-file-info" style="display: none;">
-                        <p><strong>Selected file:</strong> <span id="ldag-file-name"></span></p>
-                    </div>
-                    <div class="ldag-actions">
-                        <button type="button" class="button button-primary button-large" id="ldag-submit-project" disabled data-quiz-id="' . esc_attr($quiz_id) . '">
-                            Submit Project for Grading
-                        </button>
-                    </div>
-                    <div class="ldag-status" style="display: none;">
-                        <div class="ldag-message"></div>
-                    </div>
-                </div>';
+    private function render_submission_form($quiz_id, $show_next_button = false, $next_lesson_url = null) {
+        $submission_form = '<div class="ldag-submission">
+                                <h3>📁 Project Submission</h3>
+                                <div class="ldag-upload-area">
+                                    <p>📤 Drop your project file here or click to browse</p>
+                                    <input type="file" id="ldag-project-file" accept=".zip,.tar.gz,.tar" style="display: none;" />
+                                    <button type="button" class="button button-primary button-large" id="ldag-choose-file">
+                                        Choose Project File
+                                    </button>
+                                </div>
+                                <div class="ldag-file-info" style="display: none;">
+                                    <p><strong>Selected file:</strong> <span id="ldag-file-name"></span></p>
+                                </div>
+                                <div class="ldag-actions">
+                                    <button type="button" class="button button-primary button-large" id="ldag-submit-project" disabled data-quiz-id="' . esc_attr($quiz_id) . '">
+                                        Submit Project for Grading
+                                    </button>
+                                </div>
+                                <div class="ldag-status" style="display: none;">
+                                    <div class="ldag-message"></div>
+                                </div>
+                            </div>';
+    
+        if ($show_next_button && $next_lesson_url) {
+            $submission_form .= '<div class="ldag-next-lesson-bottom" style="margin-top: 0; padding-top: 15px; display: flex; justify-content: flex-end;">
+                                    <a class="ld-button" href="' . esc_url($next_lesson_url) . '" style="width: auto; display: inline-block;">
+                                        <span class="ld-text">Next</span>
+                                        <span class="ld-icon ld-icon-arrow-right"></span>
+                                    </a>
+                                </div>';
+        }
+    
+        return $submission_form;
     }
     
     public function handle_project_upload() {
@@ -287,7 +294,7 @@ class LearnDashAutograderQuiz {
         
         // Simulate grading (replace with actual logic)
         sleep(2);
-        $score = 71; //rand(70, 100);
+        $score = 75; //rand(70, 100);
         
         // Submit quiz result
         $result = $this->submit_quiz_result($user_id, $quiz_id, $score);
@@ -338,6 +345,7 @@ class LearnDashAutograderQuiz {
         return $quiz_settings['sfwd-quiz_passingpercentage'] ?? self::DEFAULT_PASSING_GRADE;
     }
     
+    // Get the URL of the course item (topic, quiz, lesson) that comes after this quiz
     private function get_next_lesson_url($quiz_id) {
         $course_id = learndash_get_course_id($quiz_id);
         
@@ -345,14 +353,52 @@ class LearnDashAutograderQuiz {
             return null;
         }
         
-        $course_steps = learndash_get_course_steps($course_id);
-        $current_step_index = array_search($quiz_id, $course_steps);
+        // Find the lesson this quiz belongs to
+        $quiz_lesson = learndash_get_lesson_id($quiz_id);
         
-        if ($current_step_index === false || !isset($course_steps[$current_step_index + 1])) {
-            return null;
+        if ($quiz_lesson) {
+            // Get all topics for this lesson
+            $lesson_topics = learndash_get_topic_list($quiz_lesson, $course_id);
+            
+            // Build ordered list of all lesson content
+            $lesson_items = array();
+            
+            // Add topics and their quizzes
+            foreach ($lesson_topics as $topic) {
+                $topic_id = $topic->ID;
+                $lesson_items[] = $topic_id;
+                
+                // Add quizzes for this topic
+                $topic_quizzes = learndash_get_lesson_quiz_list($topic_id, null, $course_id);
+                foreach ($topic_quizzes as $topic_quiz) {
+                    $lesson_items[] = $topic_quiz['id'];
+                }
+            }
+            
+            // Add lesson-level quizzes
+            $lesson_quizzes = learndash_get_lesson_quiz_list($quiz_lesson, null, $course_id);
+            foreach ($lesson_quizzes as $lesson_quiz) {
+                $lesson_items[] = $lesson_quiz['id'];
+            }
+            
+            // Find current quiz position and get next item
+            $quiz_index = array_search($quiz_id, $lesson_items);
+            if ($quiz_index !== false && isset($lesson_items[$quiz_index + 1])) {
+                return get_permalink($lesson_items[$quiz_index + 1]);
+            }
         }
         
-        return get_permalink($course_steps[$current_step_index + 1]);
+        // No more items in current lesson, find next lesson
+        $course_steps = learndash_get_course_steps($course_id);
+        
+        if ($quiz_lesson) {
+            $lesson_index = array_search($quiz_lesson, $course_steps);
+            if ($lesson_index !== false && isset($course_steps[$lesson_index + 1])) {
+                return get_permalink($course_steps[$lesson_index + 1]);
+            }
+        }
+        
+        return null;
     }
     
     private function submit_quiz_result($user_id, $quiz_id, $score_percent) {
