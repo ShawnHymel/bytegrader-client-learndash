@@ -266,7 +266,7 @@ class LearnDashAutograderQuiz {
                                     <p><strong>Selected file:</strong> <span id="bgcld-file-name"></span></p>
                                 </div>
                                 <div class="bgcld-actions">
-                                    <button type="button" class="button button-primary button-large" id="ldag-submit-project" 
+                                    <button type="button" class="button button-primary button-large" id="bgcld-submit-project" 
                                         disabled 
                                         data-quiz-id="' . esc_attr($quiz_id) . '"
                                         data-max-file-size="' . esc_attr($max_file_size) . '">
@@ -299,26 +299,24 @@ class LearnDashAutograderQuiz {
         // Get current user and quiz ID
         $user_id = get_current_user_id();
         $quiz_id = intval($_POST['quiz_id']);
-
-        // Get max file size from quiz settings or use default
-        $max_file_size = get_post_meta($quiz_id, '_max_file_size', true) ?: 0;
-        $max_bytes = $max_file_size * 1024 * 1024;
         
         if (!isset($_FILES['project_file'])) {
             wp_send_json_error('No file uploaded');
         }
-
-        // Check if file size exceeds the limit
-        if ($file['size'] > $max_bytes) {
-            wp_send_json_error("File too large. Maximum size is {$max_file_size}MB.");
-        }
-
+        
         // Get the uploaded file
         $file = $_FILES['project_file'];
         
         // Basic file validation
         if ($file['error'] !== UPLOAD_ERR_OK) {
             wp_send_json_error('File upload failed');
+        }
+        
+        // Check if file size exceeds the limit
+        $max_file_size = get_post_meta($quiz_id, '_max_file_size', true) ?: 0;
+        $max_bytes = $max_file_size * 1024 * 1024;
+        if ($file['size'] > $max_bytes) {
+            wp_send_json_error("File too large. Maximum size is {$max_file_size}MB.");
         }
         
         // Simulate grading (replace with actual logic)

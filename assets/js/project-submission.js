@@ -51,7 +51,16 @@ jQuery(document).ready(function($) {
             
             const files = e.originalEvent.dataTransfer.files;
             if (files.length > 0) {
-                selectedFile = files[0];
+                const file = files[0];
+                
+                // Check file size for drag & drop too
+                const maxFileSizeMB = $('#bgcld-submit-project').data('max-file-size') || defaultFileSizeMB;
+                if (!validateFileSize(file, maxFileSizeMB)) {
+                    alert('File is too large. Please select a smaller file.');
+                    return;
+                }
+                
+                selectedFile = file;
                 $('#bgcld-file-name').text(selectedFile.name);
                 $('.bgcld-file-info').show();
                 $('#bgcld-submit-project').prop('disabled', false);
