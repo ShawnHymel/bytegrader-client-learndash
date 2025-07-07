@@ -22,8 +22,8 @@
 }
 
 /* Main containers */
-.ldag-submission,
-.ldag-completion {
+.bgcld-submission,
+.bgcld-completion {
     max-width: 800px;
     margin: 20px 0;
     padding: 20px;
@@ -32,15 +32,15 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.ldag-submission h2,
-.ldag-completion h2 {
+.bgcld-submission h2,
+.bgcld-completion h2 {
     color: #333;
     margin-bottom: 20px;
     font-size: 24px;
 }
 
 /* Progress status */
-.ldag-progress {
+.bgcld-progress {
     background: #fff3cd;
     border: 1px solid #ffeaa7;
     color: #856404;
@@ -49,38 +49,38 @@
     margin: 20px 0;
 }
 
-.ldag-progress h4 {
+.bgcld-progress h4 {
     margin: 0 0 10px 0;
     color: #856404;
 }
 
-.ldag-progress p {
+.bgcld-progress p {
     margin: 5px 0;
 }
 
 /* Completion status */
-.ldag-completion {
+.bgcld-completion {
     background: #d4edda;
     border: 1px solid #c3e6cb;
     color: #155724;
 }
 
-.ldag-stats p {
+.bgcld-stats p {
     margin: 8px 0;
     font-size: 16px;
 }
 
-.ldag-next-lesson {
+.bgcld-next-lesson {
     margin-top: 20px;
 }
 
-.ldag-next-btn {
+.bgcld-next-btn {
     font-size: 16px;
     padding: 12px 24px;
 }
 
 /* Upload area */
-.ldag-upload-area {
+.bgcld-upload-area {
     border: 2px dashed #007cba;
     padding: 40px;
     text-align: center;
@@ -91,25 +91,25 @@
     cursor: pointer;
 }
 
-.ldag-upload-area:hover {
+.bgcld-upload-area:hover {
     background: #e6f3ff;
     border-color: #005a87;
 }
 
-.ldag-upload-area.dragover {
+.bgcld-upload-area.dragover {
     background: #e6f3ff;
     border-color: #005a87;
     transform: scale(1.02);
 }
 
-.ldag-upload-area p {
+.bgcld-upload-area p {
     font-size: 18px;
     margin-bottom: 20px;
     color: #333;
 }
 
 /* File info */
-.ldag-file-info {
+.bgcld-file-info {
     background: #f8f9fa;
     padding: 15px;
     border-radius: 5px;
@@ -117,100 +117,100 @@
     border-left: 4px solid #007cba;
 }
 
-.ldag-file-info p {
+.bgcld-file-info p {
     margin: 0;
     font-size: 16px;
 }
 
-#ldag-file-name {
+#bgcld-file-name {
     font-weight: 600;
     color: #007cba;
 }
 
 /* Actions */
-.ldag-actions {
+.bgcld-actions {
     text-align: center;
     margin: 20px 0;
 }
 
-#ldag-submit-project {
+#bgcld-submit-project {
     font-size: 16px;
     padding: 12px 24px;
     min-width: 200px;
 }
 
-#ldag-submit-project:disabled {
+#bgcld-submit-project:disabled {
     opacity: 0.6;
     cursor: not-allowed;
 }
 
-.ldag-next-lesson-bottom {
+.bgcld-next-lesson-bottom {
     text-align: right;
     margin-top: 0;
     padding-top: 15px;
     border-top: 1px solid #ddd;
 }
 
-.ldag-next-btn.ld-button {
+.bgcld-next-btn.ld-button {
     font-size: 13px !important;
     padding: 6px 12px !important;
 }
 
 /* Status messages */
-.ldag-status {
+.bgcld-status {
     padding: 15px;
     border-radius: 5px;
     margin: 20px 0;
     text-align: center;
 }
 
-.ldag-status.processing {
+.bgcld-status.processing {
     background: #fff3cd;
     border: 1px solid #ffeaa7;
     color: #856404;
 }
 
-.ldag-status.success {
+.bgcld-status.success {
     background: #d4edda;
     border: 1px solid #c3e6cb;
     color: #155724;
 }
 
-.ldag-status.error {
+.bgcld-status.error {
     background: #f8d7da;
     border: 1px solid #f5c6cb;
     color: #721c24;
 }
 
-.ldag-status.neutral {
+.bgcld-status.neutral {
     background: #f8f9fa;
     border: 1px solid #dee2e6;
     color: #495057;
 }
 
-.ldag-message {
+.bgcld-message {
     font-size: 16px;
     font-weight: 500;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-    .ldag-submission,
-    .ldag-completion {
+    .bgcld-submission,
+    .bgcld-completion {
         margin: 10px;
         padding: 15px;
     }
     
-    .ldag-upload-area {
+    .bgcld-upload-area {
         padding: 30px 20px;
     }
     
-    .ldag-upload-area p {
+    .bgcld-upload-area p {
         font-size: 16px;
     }
     
-    #ldag-submit-project,
-    .ldag-next-btn {
+    #bgcld-submit-project,
+    .bgcld-next-btn {
         width: 100%;
         margin-top: 15px;
     }

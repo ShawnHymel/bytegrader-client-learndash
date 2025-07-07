@@ -1,11 +1,18 @@
 <?php
 /**
- * Plugin Name: LearnDash Autograder Quiz
- * Plugin URI: https://yoursite.com
- * Description: Adds project submission quizzes and regular button-based submissions to LearnDash
- * Version: 1.0.0
- * Author: Your Name
- * License: GPL v2 or later
+ * Plugin Name: ByteGrader Client for LearnDash
+ * Plugin URI: https://github.com/yourusername/bytegrader-client-learndash
+ * Description: Integrates ByteGrader autograding service with LearnDash LMS for automated code assessment
+ * Version: 0.8.0
+ * Author: Shawn Hymel
+ * Author URI: https://shawnhymel.com
+ * License: MIT
+ * License URI: https://opensource.org/license/mit
+ * Text Domain: bytegrader-client-learndash
+ * Domain Path: /languages
+ * Requires at least: 5.7
+ * Requires PHP: 7.4
+ * Tested up to: 6.8
  */
 
 // Prevent direct access
@@ -13,15 +20,21 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Define constants
-define('LDAG_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('LDAG_PLUGIN_DIR', plugin_dir_path(__FILE__));
-define('LDAG_DEBUG', true);
+// Version
+define('BGCLD_VERSION', '0.8.0');
+
+// Debug
+if (!defined('BGCLD_DEBUG')) {
+    define('BGCLD_DEBUG', false);
+}
+
+// Plugin paths
+define('BGCLD_PLUGIN_URL', plugin_dir_url(__FILE__));
+define('BGCLD_PLUGIN_DIR', plugin_dir_path(__FILE__));
 
 class LearnDashAutograderQuiz {
     
     // Settings
-    const DEBUG = true;
     const DEFAULT_PASSING_GRADE = 80;
     
     public function __construct() {
@@ -40,10 +53,10 @@ class LearnDashAutograderQuiz {
         add_action('wp', array($this, 'maybe_hijack_quiz'));
         
         // AJAX handlers
-        add_action('wp_ajax_ldag_upload_project', array($this, 'handle_project_upload'));
-        add_action('wp_ajax_nopriv_ldag_upload_project', array($this, 'handle_project_upload'));
-        add_action('wp_ajax_ldag_submit_code', array($this, 'handle_code_submission'));
-        add_action('wp_ajax_nopriv_ldag_submit_code', array($this, 'handle_code_submission'));
+        add_action('wp_ajax_bgcld_upload_project', array($this, 'handle_project_upload'));
+        add_action('wp_ajax_nopriv_bgcld_upload_project', array($this, 'handle_project_upload'));
+        add_action('wp_ajax_bgcld_submit_code', array($this, 'handle_code_submission'));
+        add_action('wp_ajax_nopriv_bgcld_submit_code', array($this, 'handle_code_submission'));
         add_action('wp_ajax_get_next_lesson_url', array($this, 'ajax_get_next_lesson_url'));
         add_action('wp_ajax_nopriv_get_next_lesson_url', array($this, 'ajax_get_next_lesson_url'));
     }
@@ -62,23 +75,23 @@ class LearnDashAutograderQuiz {
         }
         
         wp_enqueue_script(
-            'ldag-project-submission', 
-            LDAG_PLUGIN_URL . 'assets/js/project-submission.js',
+            'bgcld-project-submission', 
+            BGCLD_PLUGIN_URL . 'assets/js/project-submission.js',
             array('jquery'),
-            '1.0.0',
+            BGCLD_VERSION,
             true
         );
         
         wp_enqueue_style(
-            'ldag-project-submission',
-            LDAG_PLUGIN_URL . 'assets/css/project-submission.css',
+            'bgcld-project-submission',
+            BGCLD_PLUGIN_URL . 'assets/css/project-submission.css',
             array(),
-            '1.0.0'
+            BGCLD_VERSION
         );
         
-        wp_localize_script('ldag-project-submission', 'ldag_ajax', array(
+        wp_localize_script('bgcld-project-submission', 'bgcld_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('ldag_upload_nonce'),
+            'nonce' => wp_create_nonce('bgcld_upload_nonce'),
             'quiz_id' => $post->ID
         ));
     }
@@ -221,7 +234,7 @@ class LearnDashAutograderQuiz {
     }
     
     private function render_progress_status($best_score, $passing_grade, $attempt_count, $passed) {
-        return '<div class="ldag-progress">
+        return '<div class="bgcld-progress">
                     <h4>📊 Try Again!</h4>
                     <p><strong>Best Score:</strong> ' . $best_score . '% (Need: ' . $passing_grade . '%)</p>
                     <p><strong>Attempts:</strong> ' . $attempt_count . '</p>
@@ -230,7 +243,7 @@ class LearnDashAutograderQuiz {
     }
     
     private function render_completion_status($best_score, $passing_grade, $attempt_count, $quiz_id) {
-        return '<div class="ldag-completion">
+        return '<div class="bgcld-completion">
                     <h4>✅ Assignment Completed Successfully!</h4>
                     <p><strong>Best Score:</strong> ' . $best_score . '% (Passing: ' . $passing_grade . '%)</p>
                     <p><strong>Attempts:</strong> ' . $attempt_count . '</p>
@@ -239,30 +252,30 @@ class LearnDashAutograderQuiz {
     }
     
     private function render_submission_form($quiz_id, $show_next_button = false, $next_lesson_url = null) {
-        $submission_form = '<div class="ldag-submission">
+        $submission_form = '<div class="bgcld-submission">
                                 <h3>📁 Project Submission</h3>
-                                <div class="ldag-upload-area">
+                                <div class="bgcld-upload-area">
                                     <p>📤 Drop your project file here or click to browse</p>
-                                    <input type="file" id="ldag-project-file" accept=".zip,.tar.gz,.tar" style="display: none;" />
-                                    <button type="button" class="button button-primary button-large" id="ldag-choose-file">
+                                    <input type="file" id="bgcld-project-file" accept=".zip,.tar.gz,.tar" style="display: none;" />
+                                    <button type="button" class="button button-primary button-large" id="bgcld-choose-file">
                                         Choose Project File
                                     </button>
                                 </div>
-                                <div class="ldag-file-info" style="display: none;">
-                                    <p><strong>Selected file:</strong> <span id="ldag-file-name"></span></p>
+                                <div class="bgcld-file-info" style="display: none;">
+                                    <p><strong>Selected file:</strong> <span id="bgcld-file-name"></span></p>
                                 </div>
-                                <div class="ldag-actions">
-                                    <button type="button" class="button button-primary button-large" id="ldag-submit-project" disabled data-quiz-id="' . esc_attr($quiz_id) . '">
+                                <div class="bgcld-actions">
+                                    <button type="button" class="button button-primary button-large" id="bgcld-submit-project" disabled data-quiz-id="' . esc_attr($quiz_id) . '">
                                         Submit Project for Grading
                                     </button>
                                 </div>
-                                <div class="ldag-status" style="display: none;">
-                                    <div class="ldag-message"></div>
+                                <div class="bgcld-status" style="display: none;">
+                                    <div class="bgcld-message"></div>
                                 </div>
                             </div>';
     
         if ($show_next_button && $next_lesson_url) {
-            $submission_form .= '<div class="ldag-next-lesson-bottom" style="margin-top: 0; padding-top: 15px; display: flex; justify-content: flex-end;">
+            $submission_form .= '<div class="bgcld-next-lesson-bottom" style="margin-top: 0; padding-top: 15px; display: flex; justify-content: flex-end;">
                                     <a class="ld-button" href="' . esc_url($next_lesson_url) . '" style="width: auto; display: inline-block;">
                                         <span class="ld-text">Next</span>
                                         <span class="ld-icon ld-icon-arrow-right"></span>
@@ -274,7 +287,7 @@ class LearnDashAutograderQuiz {
     }
     
     public function handle_project_upload() {
-        if (!wp_verify_nonce($_POST['nonce'], 'ldag_upload_nonce') || !is_user_logged_in()) {
+        if (!wp_verify_nonce($_POST['nonce'], 'bgcld_upload_nonce') || !is_user_logged_in()) {
             wp_send_json_error('Security check failed');
         }
         
@@ -310,7 +323,7 @@ class LearnDashAutograderQuiz {
     }
     
     public function handle_code_submission() {
-        if (!wp_verify_nonce($_POST['nonce'], 'ldag_nonce') || !is_user_logged_in()) {
+        if (!wp_verify_nonce($_POST['nonce'], 'bgcld_nonce') || !is_user_logged_in()) {
             wp_send_json_error('Invalid request');
         }
         
@@ -453,8 +466,8 @@ class LearnDashAutograderQuiz {
     
     // Log debug messages
     private function debug($msg) {
-        if (defined('LDAG_DEBUG') && LDAG_DEBUG) {
-            error_log('[LDAG] ' . $msg);
+        if (BGCLD_DEBUG || (defined('WP_DEBUG') && WP_DEBUG)) {
+            error_log('[BGCLD] ' . $msg);
         }
     }
 }

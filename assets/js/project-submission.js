@@ -4,24 +4,24 @@ jQuery(document).ready(function($) {
     let selectedFile = null;
     
     // File selection
-    $('#ldag-choose-file').on('click', function() {
-        $('#ldag-project-file').click();
+    $('#bgcld-choose-file').on('click', function() {
+        $('#bgcld-project-file').click();
     });
     
-    $('#ldag-project-file').on('change', function(e) {
+    $('#bgcld-project-file').on('change', function(e) {
         const file = e.target.files[0];
         if (file) {
             selectedFile = file;
             console.log('📁 File selected:', file.name);
             
-            $('#ldag-file-name').text(file.name);
-            $('.ldag-file-info').show();
-            $('#ldag-submit-project').prop('disabled', false);
+            $('#bgcld-file-name').text(file.name);
+            $('.bgcld-file-info').show();
+            $('#bgcld-submit-project').prop('disabled', false);
         }
     });
     
     // Drag and drop
-    $('.ldag-upload-area')
+    $('.bgcld-upload-area')
         .on('dragover', function(e) {
             e.preventDefault();
             $(this).addClass('dragover');
@@ -37,14 +37,14 @@ jQuery(document).ready(function($) {
             const files = e.originalEvent.dataTransfer.files;
             if (files.length > 0) {
                 selectedFile = files[0];
-                $('#ldag-file-name').text(selectedFile.name);
-                $('.ldag-file-info').show();
-                $('#ldag-submit-project').prop('disabled', false);
+                $('#bgcld-file-name').text(selectedFile.name);
+                $('.bgcld-file-info').show();
+                $('#bgcld-submit-project').prop('disabled', false);
             }
         });
     
     // Submit project
-    $('#ldag-submit-project').on('click', function() {
+    $('#bgcld-submit-project').on('click', function() {
         if (!selectedFile) {
             alert('Please select a file first.');
             return;
@@ -53,8 +53,8 @@ jQuery(document).ready(function($) {
         console.log('🚀 Submitting project:', selectedFile.name);
         
         const button = $(this);
-        const statusDiv = $('.ldag-status');
-        const statusMsg = $('.ldag-message');
+        const statusDiv = $('.bgcld-status');
+        const statusMsg = $('.bgcld-message');
         
         // Show loading state
         button.prop('disabled', true);
@@ -65,14 +65,14 @@ jQuery(document).ready(function($) {
         
         // Create form data
         const formData = new FormData();
-        formData.append('action', 'ldag_upload_project');
+        formData.append('action', 'bgcld_upload_project');
         formData.append('quiz_id', button.data('quiz-id'));
-        formData.append('nonce', ldag_ajax.nonce);
+        formData.append('nonce', bgcld_ajax.nonce);
         formData.append('project_file', selectedFile);
         
         // Submit via AJAX
         $.ajax({
-            url: ldag_ajax.ajax_url,
+            url: bgcld_ajax.ajax_url,
             type: 'POST',
             data: formData,
             processData: false,
