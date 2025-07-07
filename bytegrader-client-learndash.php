@@ -31,6 +31,7 @@ class LearnDashAutograderQuiz {
     
     // Settings
     const DEFAULT_PASSING_GRADE = 80;
+    const DEFAULT_MAX_FILE_SIZE_MB = 10;
     
     public function __construct() {
         add_action('init', array($this, 'init'));
@@ -108,7 +109,7 @@ class LearnDashAutograderQuiz {
         wp_nonce_field('autograder_quiz_meta', 'autograder_quiz_nonce');
         
         $is_project_quiz = get_post_meta($post->ID, '_is_project_submission', true);
-        $max_file_size = get_post_meta($post->ID, '_max_file_size', true) ?: '50';
+        $max_file_size = get_post_meta($post->ID, '_max_file_size', true) ?: self::DEFAULT_MAX_FILE_SIZE_MB;
         
         ?>
         <table class="form-table">
@@ -247,6 +248,11 @@ class LearnDashAutograderQuiz {
     }
     
     private function render_submission_form($quiz_id, $show_next_button = false, $next_lesson_url = null) {
+        
+        // Get max file size from quiz settings or use default
+        $max_file_size = get_post_meta($quiz_id, '_max_file_size', true) ?: self::DEFAULT_MAX_FILE_SIZE_MB;
+
+        // Construct submission form HTML
         $submission_form = '<div class="bgcld-submission">
                                 <h3>📁 Project Submission</h3>
                                 <div class="bgcld-upload-area">
@@ -260,7 +266,10 @@ class LearnDashAutograderQuiz {
                                     <p><strong>Selected file:</strong> <span id="bgcld-file-name"></span></p>
                                 </div>
                                 <div class="bgcld-actions">
-                                    <button type="button" class="button button-primary button-large" id="bgcld-submit-project" disabled data-quiz-id="' . esc_attr($quiz_id) . '">
+                                    <button type="button" class="button button-primary button-large" id="ldag-submit-project" 
+                                        disabled 
+                                        data-quiz-id="' . esc_attr($quiz_id) . '"
+                                        data-max-file-size="' . esc_attr($max_file_size) . '">
                                         Submit Project for Grading
                                     </button>
                                 </div>
@@ -269,6 +278,7 @@ class LearnDashAutograderQuiz {
                                 </div>
                             </div>';
     
+        // Add next lesson button if applicable
         if ($show_next_button && $next_lesson_url) {
             $submission_form .= '<div class="bgcld-next-lesson-bottom" style="margin-top: 0; padding-top: 15px; display: flex; justify-content: flex-end;">
                                     <a class="ld-button" href="' . esc_url($next_lesson_url) . '" style="width: auto; display: inline-block;">
@@ -286,13 +296,24 @@ class LearnDashAutograderQuiz {
             wp_send_json_error('Security check failed');
         }
         
+        // Get current user and quiz ID
         $user_id = get_current_user_id();
         $quiz_id = intval($_POST['quiz_id']);
+
+        // Get max file size from quiz settings or use default
+        $max_file_size = get_post_meta($quiz_id, '_max_file_size', true) ?: 0;
+        $max_bytes = $max_file_size * 1024 * 1024;
         
         if (!isset($_FILES['project_file'])) {
             wp_send_json_error('No file uploaded');
         }
-        
+
+        // Check if file size exceeds the limit
+        if ($file['size'] > $max_bytes) {
+            wp_send_json_error("File too large. Maximum size is {$max_file_size}MB.");
+        }
+
+        // Get the uploaded file
         $file = $_FILES['project_file'];
         
         // Basic file validation

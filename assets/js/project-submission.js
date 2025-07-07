@@ -2,6 +2,13 @@ jQuery(document).ready(function($) {
     console.log('🚀 Project submission interface loaded');
     
     let selectedFile = null;
+    let defaultFileSizeMB = 10; // Default max file size in MB
+
+    // See if the file size is less than or equal to the specified size
+    function validateFileSize(file, maxSizeMB) {
+        const maxBytes = maxSizeMB * 1024 * 1024;
+        return file.size <= maxBytes;
+    }
     
     // File selection
     $('#bgcld-choose-file').on('click', function() {
@@ -13,7 +20,15 @@ jQuery(document).ready(function($) {
         if (file) {
             selectedFile = file;
             console.log('📁 File selected:', file.name);
-            
+
+            // Check if file size exceeds the limit
+            const maxFileSizeMB = $('#bgcld-submit-project').data('max-file-size') || defaultFileSizeMB;
+            if (!validateFileSize(file, maxFileSizeMB)) {
+                alert('File is too large. Please select a smaller file.');
+                $(this).val('');
+                return;
+            }
+
             $('#bgcld-file-name').text(file.name);
             $('.bgcld-file-info').show();
             $('#bgcld-submit-project').prop('disabled', false);
