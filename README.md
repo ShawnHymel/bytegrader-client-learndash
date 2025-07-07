@@ -12,37 +12,30 @@ A WordPress plugin that integrates [ByteGrader autograding service](https://gith
 ## Installation
 
 ### Method 1: WordPress Admin Upload (Recommended)
+
 1. Download the latest release as a ZIP file from the [Releases page](https://github.com/ShawnHymel/bytegrader-client-learndash/releases)
 2. In WordPress admin, go to **Plugins > Add New > Upload Plugin**
 3. Choose the downloaded ZIP file and click **Install Now**
 4. Activate the plugin
 
 ### Method 2: Manual Installation
+
 1. Download and extract the plugin files
 2. Upload the `bytegrader-client-learndash` folder to `/wp-content/plugins/`
 3. Activate the plugin through the 'Plugins' screen in WordPress
 
 ## Debug Mode
 
-ByteGrader Client logs will be enabled if either of these debug flags are set in `wp-config.php`:
-
-**Option 1: ByteGrader-specific debugging only**
+ByteGrader Client logs will be enabled by setting these flags in `wp-config.php` (in the *For developers* section):
 
 ```php
 define('BGCLD_DEBUG', true);
 define('WP_DEBUG_LOG', true);
 ```
 
-**Option 2: WordPress-wide debugging (includes ByteGrader logs)**
-
-```php
-define('WP_DEBUG', true);
-define('WP_DEBUG_LOG', true);
-```
-
 Debug logs will appear in `/wp-content/debug.log` and show ByteGrader submission processing, grading results, and any errors.
 
-> **Note:** Use Option 1 for production sites where you only want to see ByteGrader-related logs. Use Option 2 during development when you want full WordPress debugging.
+> **Note:** You can also set `define('WP_DEBUG', true);` if you want to enable WordPress-wide debugging.
 
 ## License
 

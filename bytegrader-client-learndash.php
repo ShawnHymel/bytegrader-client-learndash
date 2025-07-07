@@ -23,11 +23,6 @@ if (!defined('ABSPATH')) {
 // Version
 define('BGCLD_VERSION', '0.8.0');
 
-// Debug
-if (!defined('BGCLD_DEBUG')) {
-    define('BGCLD_DEBUG', false);
-}
-
 // Plugin paths
 define('BGCLD_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('BGCLD_PLUGIN_DIR', plugin_dir_path(__FILE__));
@@ -466,12 +461,18 @@ class LearnDashAutograderQuiz {
     
     // Log debug messages
     private function debug($msg) {
-        if (BGCLD_DEBUG || (defined('WP_DEBUG') && WP_DEBUG)) {
-            error_log('[BGCLD] ' . $msg);
+        if (defined('BGCLD_DEBUG') && BGCLD_DEBUG) {
+            if (is_array($msg) || is_object($msg)) {
+                $msg = print_r($msg, true);
+            }
+            if (function_exists('error_log')) {
+                error_log('[BGCLD] ' . $msg);
+            }
         }
     }
 }
 
 // Initialize the plugin
-new LearnDashAutograderQuiz();
-?>
+add_action('plugins_loaded', function() {
+    new LearnDashAutograderQuiz();
+});
