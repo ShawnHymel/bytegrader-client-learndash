@@ -37,6 +37,11 @@ Debug logs will appear in `/wp-content/debug.log` and show ByteGrader submission
 
 > **Note:** You can also set `define('WP_DEBUG', true);` if you want to enable WordPress-wide debugging.
 
+## Todo
+
+* Store job IDs to WP backend so that students can retrieve grade later if they close their browser window
+* Implement cleanup strategy to remove old job IDs from backend
+
 ## License
 
 All code, unless otherwise specified, is subject to the [MIT License](https://opensource.org/license/mit). See the [LICENSE](/LICENSE) file for more details.

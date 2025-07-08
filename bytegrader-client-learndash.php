@@ -64,6 +64,7 @@ class LearnDashAutograderQuiz {
         add_action('wp_ajax_nopriv_bgcld_submit_code', array($this, 'handle_code_submission'));
         add_action('wp_ajax_get_next_lesson_url', array($this, 'ajax_get_next_lesson_url'));
         add_action('wp_ajax_nopriv_get_next_lesson_url', array($this, 'ajax_get_next_lesson_url'));
+        add_action('wp_ajax_bgcld_check_job_status', array($this, 'ajax_check_job_status'));
     }
     
     public function enqueue_assets() {
@@ -300,23 +301,22 @@ class LearnDashAutograderQuiz {
         $bytegrader_result = $this->submit_to_bytegrader($settings, $assignment_id, $username, $file);
         
         if ($bytegrader_result['success']) {
-            // For now, use a fixed score of 75%
-            $score = 75;
+            // Extract job ID from response
+            $response_data = $bytegrader_result['data'];
+            $job_id = $response_data['job_id'] ?? null;
             
-            // Submit quiz result to LearnDash
-            $result = $this->submit_quiz_result($user_id, $quiz_id, $score);
-            
-            if ($result) {
+            if ($job_id) {
                 wp_send_json_success(array(
-                    'score' => $score,
-                    'message' => 'Project submitted and graded successfully!',
-                    'bytegrader_response' => $bytegrader_result['data'] // For debugging
+                    'job_id' => $job_id,
+                    'username' => $username,
+                    'status' => 'queued',
+                    'message' => 'Project submitted successfully! Please keep this page open while grading completes...'
                 ));
             } else {
-                wp_send_json_error('Failed to record quiz result');
+                wp_send_json_error('Invalid response from grading server: missing job ID');
             }
         } else {
-            wp_send_json_error('Grading failed: ' . $bytegrader_result['error']);
+            wp_send_json_error('Submission failed: ' . $bytegrader_result['error']);
         }
     }
     
@@ -572,6 +572,44 @@ class LearnDashAutograderQuiz {
         wp_send_json_success($json_data);
     }
     
+    // AJAX handler to check job status
+    public function ajax_check_job_status() {
+        if (!wp_verify_nonce($_POST['nonce'], 'bgcld_upload_nonce') || !is_user_logged_in()) {
+            wp_send_json_error('Security check failed');
+        }
+        
+        $job_id = sanitize_text_field($_POST['job_id']);
+        $username = sanitize_text_field($_POST['username']);
+        $quiz_id = intval($_POST['quiz_id']);
+        $user_id = get_current_user_id();
+        
+        if (empty($job_id) || empty($username)) {
+            wp_send_json_error('Missing job ID or username');
+        }
+        
+        // Get ByteGrader settings
+        $settings = $this->get_bytegrader_settings();
+        if (empty($settings['server_url']) || empty($settings['api_key'])) {
+            wp_send_json_error('ByteGrader server not configured');
+        }
+        
+        // Check status
+        $status_result = $this->check_bytegrader_status($settings, $job_id, $username);
+        
+        if ($status_result['success']) {
+            $parsed_status = $this->parse_job_status($status_result['data']);
+            
+            // If completed, submit to LearnDash
+            if ($parsed_status['status'] === 'completed' && $parsed_status['score'] !== null) {
+                $this->submit_quiz_result($user_id, $quiz_id, $parsed_status['score']);
+            }
+            
+            wp_send_json_success($parsed_status);
+        } else {
+            wp_send_json_error($status_result['error']);
+        }
+    }
+    
     /***************************************************************************
      * Private methods
      */
@@ -737,6 +775,118 @@ class LearnDashAutograderQuiz {
             'success' => true,
             'data' => $response_data
         );
+    }
+    
+    // Check the status of a ByteGrader job
+    private function check_bytegrader_status($settings, $job_id, $username) {
+        
+        // Build the status endpoint URL
+        $status_url = rtrim($settings['server_url'], '/') . '/status/' . urlencode($job_id);
+        
+        $this->debug("Checking ByteGrader status: {$status_url}");
+        $this->debug("Job ID: {$job_id}, Username: {$username}");
+        
+        // Set up headers
+        $headers = array(
+            'X-API-Key' => $settings['api_key'],
+            'X-Username' => $username,
+            'Content-Type' => 'application/json'
+        );
+        
+        $this->debug("Request headers: " . print_r($headers, true));
+        
+        // Make the request
+        $response = wp_remote_get($status_url, array(
+            'headers' => $headers,
+            'timeout' => 15,
+            'sslverify' => true
+        ));
+        
+        // Check for errors
+        if (is_wp_error($response)) {
+            $this->debug('ByteGrader status check error: ' . $response->get_error_message());
+            return array(
+                'success' => false,
+                'error' => 'Connection error: ' . $response->get_error_message()
+            );
+        }
+        
+        $status_code = wp_remote_retrieve_response_code($response);
+        $response_body = wp_remote_retrieve_body($response);
+        
+        $this->debug("ByteGrader status response code: {$status_code}");
+        $this->debug("ByteGrader status response body: " . $response_body);
+        
+        if ($status_code === 404) {
+            return array(
+                'success' => false,
+                'error' => 'Job not found'
+            );
+        }
+        
+        if ($status_code === 403) {
+            return array(
+                'success' => false,
+                'error' => 'Access denied - username mismatch'
+            );
+        }
+        
+        if ($status_code !== 200) {
+            return array(
+                'success' => false,
+                'error' => "Server returned status {$status_code}: " . $response_body
+            );
+        }
+        
+        // Try to decode JSON response
+        $json_data = json_decode($response_body, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return array(
+                'success' => false,
+                'error' => 'Invalid JSON response from server'
+            );
+        }
+        
+        return array(
+            'success' => true,
+            'data' => $json_data
+        );
+    }
+    
+    // Parse ByteGrader job response and extract useful information
+    private function parse_job_status($job_response) {
+        if (!isset($job_response['job'])) {
+            return array(
+                'status' => 'unknown',
+                'error' => 'Invalid job response format'
+            );
+        }
+        
+        $job = $job_response['job'];
+        
+        $parsed = array(
+            'job_id' => $job['id'] ?? '',
+            'filename' => $job['filename'] ?? '',
+            'size' => $job['size'] ?? 0,
+            'status' => $job['status'] ?? 'unknown',
+            'assignment_id' => $job['assignment_id'] ?? '',
+            'username' => $job['username'] ?? '',
+            'created_at' => $job['created_at'] ?? '',
+            'updated_at' => $job['updated_at'] ?? '',
+            'score' => null,
+            'feedback' => '',
+            'error' => ''
+        );
+        
+        // Parse result if available
+        if (isset($job['result'])) {
+            $result = $job['result'];
+            $parsed['score'] = $result['score'] ?? null;
+            $parsed['feedback'] = $result['feedback'] ?? '';
+            $parsed['error'] = $result['error'] ?? '';
+        }
+        
+        return $parsed;
     }
 
     private function get_quiz_passing_grade($quiz_id) {
