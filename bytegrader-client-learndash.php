@@ -32,9 +32,16 @@ class LearnDashAutograderQuiz {
     // Settings
     const DEFAULT_PASSING_GRADE = 80;
     const DEFAULT_MAX_FILE_SIZE_MB = 10;
+
+    /***************************************************************************
+     * Public methods
+     */
     
+    // Constructor - initialize the plugin, register hooks, and sets up admin menu
     public function __construct() {
         add_action('init', array($this, 'init'));
+        add_action('admin_menu', array($this, 'add_admin_menu'));
+        add_action('admin_init', array($this, 'register_settings'));
     }
     
     public function init() {
@@ -229,68 +236,6 @@ class LearnDashAutograderQuiz {
         return $content;
     }
     
-    private function render_progress_status($best_score, $passing_grade, $attempt_count, $passed) {
-        return '<div class="bgcld-progress">
-                    <h4>📊 Try Again!</h4>
-                    <p><strong>Best Score:</strong> ' . $best_score . '% (Need: ' . $passing_grade . '%)</p>
-                    <p><strong>Attempts:</strong> ' . $attempt_count . '</p>
-                    <p>Try again to continue with the course. You may submit again to improve your score.</p>
-                </div>';
-    }
-    
-    private function render_completion_status($best_score, $passing_grade, $attempt_count, $quiz_id) {
-        return '<div class="bgcld-completion">
-                    <h4>✅ Assignment Completed Successfully!</h4>
-                    <p><strong>Best Score:</strong> ' . $best_score . '% (Passing: ' . $passing_grade . '%)</p>
-                    <p><strong>Attempts:</strong> ' . $attempt_count . '</p>
-                    <p>You may continue to the next lesson, but feel free to submit again to improve your score (max is 100%).</p>
-                </div>';
-    }
-    
-    private function render_submission_form($quiz_id, $show_next_button = false, $next_lesson_url = null) {
-        
-        // Get max file size from quiz settings or use default
-        $max_file_size = get_post_meta($quiz_id, '_max_file_size', true) ?: self::DEFAULT_MAX_FILE_SIZE_MB;
-
-        // Construct submission form HTML
-        $submission_form = '<div class="bgcld-submission">
-                                <h3>📁 Project Submission</h3>
-                                <div class="bgcld-upload-area">
-                                    <p>📤 Drop your project file here or click to browse</p>
-                                    <input type="file" id="bgcld-project-file" accept=".zip,.tar.gz,.tar" style="display: none;" />
-                                    <button type="button" class="button button-primary button-large" id="bgcld-choose-file">
-                                        Choose Project File
-                                    </button>
-                                </div>
-                                <div class="bgcld-file-info" style="display: none;">
-                                    <p><strong>Selected file:</strong> <span id="bgcld-file-name"></span></p>
-                                </div>
-                                <div class="bgcld-actions">
-                                    <button type="button" class="button button-primary button-large" id="bgcld-submit-project" 
-                                        disabled 
-                                        data-quiz-id="' . esc_attr($quiz_id) . '"
-                                        data-max-file-size="' . esc_attr($max_file_size) . '">
-                                        Submit Project for Grading
-                                    </button>
-                                </div>
-                                <div class="bgcld-status" style="display: none;">
-                                    <div class="bgcld-message"></div>
-                                </div>
-                            </div>';
-    
-        // Add next lesson button if applicable
-        if ($show_next_button && $next_lesson_url) {
-            $submission_form .= '<div class="bgcld-next-lesson-bottom" style="margin-top: 0; padding-top: 15px; display: flex; justify-content: flex-end;">
-                                    <a class="ld-button" href="' . esc_url($next_lesson_url) . '" style="width: auto; display: inline-block;">
-                                        <span class="ld-text">Next</span>
-                                        <span class="ld-icon ld-icon-arrow-right"></span>
-                                    </a>
-                                </div>';
-        }
-    
-        return $submission_form;
-    }
-    
     public function handle_project_upload() {
         if (!wp_verify_nonce($_POST['nonce'], 'bgcld_upload_nonce') || !is_user_logged_in()) {
             wp_send_json_error('Security check failed');
@@ -366,7 +311,192 @@ class LearnDashAutograderQuiz {
         
         wp_send_json_success(array('next_url' => $next_url));
     }
+
+    // Add settings page to the admin menu
+    public function add_admin_menu() {
+        add_options_page(
+            'ByteGrader Settings',           // Page title
+            'ByteGrader',                    // Menu title
+            'manage_options',                // Capability required
+            'bytegrader-settings',           // Menu slug
+            array($this, 'settings_page')    // Callback function
+        );
+    }
+
+    // Add settings content to admin page
+    public function register_settings() {
+
+        // Register the settings group
+        register_setting('bytegrader_settings', 'bytegrader_options', array(
+            'sanitize_callback' => array($this, 'sanitize_settings')
+        ));
+        
+        // Add settings section
+        add_settings_section(
+            'bytegrader_main_section',
+            'Server Configuration',
+            array($this, 'settings_section_callback'),
+            'bytegrader_settings'
+        );
+        
+        // Server URL field
+        add_settings_field(
+            'server_url',
+            'ByteGrader Server URL',
+            array($this, 'server_url_field_callback'),
+            'bytegrader_settings',
+            'bytegrader_main_section'
+        );
+        
+        // API Key field
+        add_settings_field(
+            'api_key',
+            'API Key',
+            array($this, 'api_key_field_callback'),
+            'bytegrader_settings',
+            'bytegrader_main_section'
+        );
+    }
+
+    // Add HTML to the admin page
+    public function settings_page() {
+        ?>
+        <div class="wrap">
+            <h1>ByteGrader Settings</h1>
+            <p>Configure your ByteGrader server connection settings.</p>
+            
+            <form method="post" action="options.php">
+                <?php
+                settings_fields('bytegrader_settings');
+                do_settings_sections('bytegrader_settings');
+                submit_button('Save Settings');
+                ?>
+            </form>
+            
+            <div style="margin-top: 30px; padding: 15px; background: #f0f6fc; border-left: 4px solid #0073aa;">
+                <h3>Testing Connection</h3>
+                <p>After saving your settings, you can test the connection by creating a project submission quiz and uploading a test file.</p>
+            </div>
+        </div>
+        <?php
+    }
+
+    // Callback: add description to settings section
+    public function settings_section_callback() {
+        echo '<p>Enter your ByteGrader server details below:</p>';
+    }
+
+    // Callback: set server URL field
+    public function server_url_field_callback() {
+        $options = get_option('bytegrader_options', array());
+        $server_url = isset($options['server_url']) ? $options['server_url'] : '';
+        
+        echo '<input type="url" name="bytegrader_options[server_url]" value="' . esc_attr($server_url) . '" class="regular-text" placeholder="https://your-bytegrader-server.com" />';
+        echo '<p class="description">The base URL of your ByteGrader server (without trailing slash)</p>';
+    }
+
+    // Callback: set API key field
+    public function api_key_field_callback() {
+        $options = get_option('bytegrader_options', array());
+        $api_key = isset($options['api_key']) ? $options['api_key'] : '';
+        
+        echo '<input type="password" name="bytegrader_options[api_key]" value="' . esc_attr($api_key) . '" class="regular-text" placeholder="Enter your API key" />';
+        echo '<p class="description">Your ByteGrader API key for authentication</p>';
+    }
+
+    // Sanitize settings input - ensures data is safe before saving
+    public function sanitize_settings($input) {
+        $sanitized = array();
+        
+        if (isset($input['server_url'])) {
+            $sanitized['server_url'] = esc_url_raw(rtrim($input['server_url'], '/'));
+        }
+        
+        if (isset($input['api_key'])) {
+            $sanitized['api_key'] = sanitize_text_field($input['api_key']);
+        }
+        
+        return $sanitized;
+    }
     
+    /***************************************************************************
+     * Private methods
+     */
+
+    // Log debug messages
+    private function debug($msg) {
+        if (defined('BGCLD_DEBUG') && BGCLD_DEBUG) {
+            if (is_array($msg) || is_object($msg)) {
+                $msg = print_r($msg, true);
+            }
+            if (function_exists('error_log')) {
+                error_log('[BGCLD] ' . $msg);
+            }
+        }
+    }
+
+    private function render_progress_status($best_score, $passing_grade, $attempt_count, $passed) {
+        return '<div class="bgcld-progress">
+                    <h4>📊 Try Again!</h4>
+                    <p><strong>Best Score:</strong> ' . $best_score . '% (Need: ' . $passing_grade . '%)</p>
+                    <p><strong>Attempts:</strong> ' . $attempt_count . '</p>
+                    <p>Try again to continue with the course. You may submit again to improve your score.</p>
+                </div>';
+    }
+    
+    private function render_completion_status($best_score, $passing_grade, $attempt_count, $quiz_id) {
+        return '<div class="bgcld-completion">
+                    <h4>✅ Assignment Completed Successfully!</h4>
+                    <p><strong>Best Score:</strong> ' . $best_score . '% (Passing: ' . $passing_grade . '%)</p>
+                    <p><strong>Attempts:</strong> ' . $attempt_count . '</p>
+                    <p>You may continue to the next lesson, but feel free to submit again to improve your score (max is 100%).</p>
+                </div>';
+    }
+    
+    private function render_submission_form($quiz_id, $show_next_button = false, $next_lesson_url = null) {
+        
+        // Get max file size from quiz settings or use default
+        $max_file_size = get_post_meta($quiz_id, '_max_file_size', true) ?: self::DEFAULT_MAX_FILE_SIZE_MB;
+
+        // Construct submission form HTML
+        $submission_form = '<div class="bgcld-submission">
+                                <h3>📁 Project Submission</h3>
+                                <div class="bgcld-upload-area">
+                                    <p>📤 Drop your project file here or click to browse</p>
+                                    <input type="file" id="bgcld-project-file" accept=".zip,.tar.gz,.tar" style="display: none;" />
+                                    <button type="button" class="button button-primary button-large" id="bgcld-choose-file">
+                                        Choose Project File
+                                    </button>
+                                </div>
+                                <div class="bgcld-file-info" style="display: none;">
+                                    <p><strong>Selected file:</strong> <span id="bgcld-file-name"></span></p>
+                                </div>
+                                <div class="bgcld-actions">
+                                    <button type="button" class="button button-primary button-large" id="bgcld-submit-project" 
+                                        disabled 
+                                        data-quiz-id="' . esc_attr($quiz_id) . '"
+                                        data-max-file-size="' . esc_attr($max_file_size) . '">
+                                        Submit Project for Grading
+                                    </button>
+                                </div>
+                                <div class="bgcld-status" style="display: none;">
+                                    <div class="bgcld-message"></div>
+                                </div>
+                            </div>';
+    
+        // Add next lesson button if applicable
+        if ($show_next_button && $next_lesson_url) {
+            $submission_form .= '<div class="bgcld-next-lesson-bottom" style="margin-top: 0; padding-top: 15px; display: flex; justify-content: flex-end;">
+                                    <a class="ld-button" href="' . esc_url($next_lesson_url) . '" style="width: auto; display: inline-block;">
+                                        <span class="ld-text">Next</span>
+                                        <span class="ld-icon ld-icon-arrow-right"></span>
+                                    </a>
+                                </div>';
+        }
+    
+        return $submission_form;
+    }
+
     private function get_quiz_passing_grade($quiz_id) {
         $quiz_settings = get_post_meta($quiz_id, '_sfwd-quiz', true);
         return $quiz_settings['sfwd-quiz_passingpercentage'] ?? self::DEFAULT_PASSING_GRADE;
@@ -477,17 +607,15 @@ class LearnDashAutograderQuiz {
         
         return true;
     }
-    
-    // Log debug messages
-    private function debug($msg) {
-        if (defined('BGCLD_DEBUG') && BGCLD_DEBUG) {
-            if (is_array($msg) || is_object($msg)) {
-                $msg = print_r($msg, true);
-            }
-            if (function_exists('error_log')) {
-                error_log('[BGCLD] ' . $msg);
-            }
-        }
+
+    // Get ByteGrader settings from the database
+    private function get_bytegrader_settings() {
+        $defaults = array(
+            'server_url' => '',
+            'api_key' => ''
+        );
+        
+        return wp_parse_args(get_option('bytegrader_options', array()), $defaults);
     }
 }
 
