@@ -250,6 +250,7 @@ class LearnDashAutograderQuiz {
         return $content;
     }
     
+    // Send project submission to ByteGrader server and wait for result
     public function handle_project_upload() {
         if (!wp_verify_nonce($_POST['nonce'], 'bgcld_upload_nonce') || !is_user_logged_in()) {
             wp_send_json_error('Security check failed');
@@ -258,11 +259,11 @@ class LearnDashAutograderQuiz {
         // Get current user and quiz ID
         $user_id = get_current_user_id();
         $quiz_id = intval($_POST['quiz_id']);
-        
+    
         if (!isset($_FILES['project_file'])) {
             wp_send_json_error('No file uploaded');
         }
-        
+    
         // Get the uploaded file
         $file = $_FILES['project_file'];
         
@@ -270,28 +271,52 @@ class LearnDashAutograderQuiz {
         if ($file['error'] !== UPLOAD_ERR_OK) {
             wp_send_json_error('File upload failed');
         }
-        
-        // Check if file size exceeds the limit
-        $max_file_size = get_post_meta($quiz_id, '_max_file_size', true) ?: 0;
+    
+        // Check file size
+        $max_file_size = get_post_meta($quiz_id, '_max_file_size', true) ?: self::DEFAULT_MAX_FILE_SIZE_MB;
         $max_bytes = $max_file_size * 1024 * 1024;
+        
         if ($file['size'] > $max_bytes) {
             wp_send_json_error("File too large. Maximum size is {$max_file_size}MB.");
         }
         
-        // Simulate grading (replace with actual logic)
-        sleep(2);
-        $score = 75; //rand(70, 100);
+        // Get ByteGrader settings
+        $settings = $this->get_bytegrader_settings();
+        if (empty($settings['server_url']) || empty($settings['api_key'])) {
+            wp_send_json_error('ByteGrader server not configured. Please contact your administrator.');
+        }
         
-        // Submit quiz result
-        $result = $this->submit_quiz_result($user_id, $quiz_id, $score);
+        // Get assignment ID
+        $assignment_id = $this->get_quiz_assignment_id($quiz_id);
+        if (empty($assignment_id)) {
+            wp_send_json_error('Assignment ID not configured for this quiz. Please contact your administrator.');
+        }
         
-        if ($result) {
-            wp_send_json_success(array(
-                'score' => $score,
-                'message' => 'Project compiled and tested successfully!'
-            ));
+        // Get current user info
+        $user = wp_get_current_user();
+        $username = $user->user_login; // or use $user->user_email if you prefer
+        
+        // Submit to ByteGrader server
+        $bytegrader_result = $this->submit_to_bytegrader($settings, $assignment_id, $username, $file);
+        
+        if ($bytegrader_result['success']) {
+            // For now, use a fixed score of 75%
+            $score = 75;
+            
+            // Submit quiz result to LearnDash
+            $result = $this->submit_quiz_result($user_id, $quiz_id, $score);
+            
+            if ($result) {
+                wp_send_json_success(array(
+                    'score' => $score,
+                    'message' => 'Project submitted and graded successfully!',
+                    'bytegrader_response' => $bytegrader_result['data'] // For debugging
+                ));
+            } else {
+                wp_send_json_error('Failed to record quiz result');
+            }
         } else {
-            wp_send_json_error('Failed to submit quiz result');
+            wp_send_json_error('Grading failed: ' . $bytegrader_result['error']);
         }
     }
     
@@ -623,6 +648,95 @@ class LearnDashAutograderQuiz {
         }
     
         return $submission_form;
+    }
+    
+    // Construct request and send project submission to ByteGrader
+    private function submit_to_bytegrader($settings, $assignment_id, $username, $file) {
+        
+        // Build the submit endpoint URL
+        $submit_url = rtrim($settings['server_url'], '/') . '/submit?assignment=' . urlencode($assignment_id);
+        
+        $this->debug("Submitting to ByteGrader: {$submit_url}");
+        $this->debug("Assignment: {$assignment_id}, Username: {$username}");
+        $this->debug("File: {$file['name']}, Size: {$file['size']} bytes");
+        
+        // Use WordPress's built-in cURL file upload
+        $boundary = wp_generate_password(24, false);
+        
+        // Read the file contents
+        $file_contents = file_get_contents($file['tmp_name']);
+        if ($file_contents === false) {
+            return array(
+                'success' => false,
+                'error' => 'Unable to read uploaded file'
+            );
+        }
+        
+        // Construct proper multipart body
+        $body = '';
+        $body .= '--' . $boundary . "\r\n";
+        $body .= 'Content-Disposition: form-data; name="file"; filename="' . $file['name'] . '"' . "\r\n";
+        $body .= 'Content-Type: application/zip' . "\r\n";
+        $body .= "\r\n";
+        $body .= $file_contents;
+        $body .= "\r\n";
+        $body .= '--' . $boundary . '--' . "\r\n";
+        
+        // Set up headers
+        $headers = array(
+            'X-API-Key' => $settings['api_key'],
+            'X-Username' => $username,
+            'Content-Type' => 'multipart/form-data; boundary=' . $boundary,
+            'Content-Length' => strlen($body)
+        );
+        
+        $this->debug("Request headers: " . print_r($headers, true));
+        $this->debug("Body length: " . strlen($body) . " bytes");
+        
+        // Make the request
+        $response = wp_remote_post($submit_url, array(
+            'headers' => $headers,
+            'body' => $body,
+            'timeout' => 60,
+            'method' => 'POST',
+            'sslverify' => true,
+            'data_format' => 'body'
+        ));
+        
+        // Check for errors
+        if (is_wp_error($response)) {
+            $this->debug('ByteGrader request error: ' . $response->get_error_message());
+            return array(
+                'success' => false,
+                'error' => 'Connection error: ' . $response->get_error_message()
+            );
+        }
+        
+        $status_code = wp_remote_retrieve_response_code($response);
+        $response_body = wp_remote_retrieve_body($response);
+        
+        $this->debug("ByteGrader response status: {$status_code}");
+        $this->debug("ByteGrader response body: " . $response_body);
+        
+        if ($status_code !== 200) {
+            return array(
+                'success' => false,
+                'error' => "Server returned status {$status_code}: " . $response_body
+            );
+        }
+        
+        // Try to decode JSON response
+        $json_data = json_decode($response_body, true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            $response_data = $json_data;
+        } else {
+            $response_data = $response_body;
+        }
+        
+        return array(
+            'success' => true,
+            'data' => $response_data
+        );
     }
 
     private function get_quiz_passing_grade($quiz_id) {
