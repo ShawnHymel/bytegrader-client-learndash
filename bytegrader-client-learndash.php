@@ -119,6 +119,7 @@ class LearnDashAutograderQuiz {
         
         $is_project_quiz = get_post_meta($post->ID, '_is_project_submission', true);
         $max_file_size = get_post_meta($post->ID, '_max_file_size', true) ?: self::DEFAULT_MAX_FILE_SIZE_MB;
+        $assignment_id = get_post_meta($post->ID, '_bytegrader_assignment_id', true);
         
         ?>
         <table class="form-table">
@@ -141,8 +142,15 @@ class LearnDashAutograderQuiz {
                     <input type="number" name="max_file_size" value="<?php echo esc_attr($max_file_size); ?>" min="1" max="500" />
                 </td>
             </tr>
+            <tr class="project-settings" style="<?php echo !$is_project_quiz ? 'display:none;' : ''; ?>">
+                <th scope="row">Assignment ID</th>
+                <td>
+                    <input type="text" name="bytegrader_assignment_id" value="<?php echo esc_attr($assignment_id); ?>" class="regular-text" placeholder="e.g., cpp-hello-world" />
+                    <p class="description">The assignment identifier on your ByteGrader server</p>
+                </td>
+            </tr>
         </table>
-        
+            
         <script>
         jQuery(document).ready(function($) {
             $('input[name="quiz_type"]').on('change', function() {
@@ -175,6 +183,10 @@ class LearnDashAutograderQuiz {
         
         if (isset($_POST['max_file_size'])) {
             update_post_meta($post_id, '_max_file_size', sanitize_text_field($_POST['max_file_size']));
+        }
+        
+        if (isset($_POST['bytegrader_assignment_id'])) {
+            update_post_meta($post_id, '_bytegrader_assignment_id', sanitize_text_field($_POST['bytegrader_assignment_id']));
         }
     }
     
@@ -672,6 +684,10 @@ class LearnDashAutograderQuiz {
         }
         
         return null;
+    }
+    
+    private function get_quiz_assignment_id($quiz_id) {
+        return get_post_meta($quiz_id, '_bytegrader_assignment_id', true);
     }
     
     private function submit_quiz_result($user_id, $quiz_id, $score_percent) {
