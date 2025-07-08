@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: ByteGrader Client for LearnDash
- * Plugin URI: https://github.com/yourusername/bytegrader-client-learndash
+ * Plugin URI: https://github.com/ShawnHymel/bytegrader-client-learndash
  * Description: Integrates ByteGrader autograding service with LearnDash LMS for automated code assessment
  * Version: 0.8.0
  * Author: Shawn Hymel
@@ -42,6 +42,8 @@ class LearnDashAutograderQuiz {
         add_action('init', array($this, 'init'));
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
+        add_filter('plugin_action_links_' . plugin_basename(__FILE__), array($this, 'add_plugin_action_links'));
+        add_action('wp_ajax_bgcld_test_connection', array($this, 'ajax_test_connection'));
     }
     
     public function init() {
@@ -374,10 +376,63 @@ class LearnDashAutograderQuiz {
             </form>
             
             <div style="margin-top: 30px; padding: 15px; background: #f0f6fc; border-left: 4px solid #0073aa;">
-                <h3>Testing Connection</h3>
-                <p>After saving your settings, you can test the connection by creating a project submission quiz and uploading a test file.</p>
+                <h3>Test Connection</h3>
+                <p>Test your connection to the ByteGrader server:</p>
+                <button type="button" id="bgcld-test-connection" class="button button-secondary">Test Connection</button>
+                <div id="bgcld-connection-result" style="margin-top: 15px; display: none;"></div>
             </div>
         </div>
+        
+        <script>
+        jQuery(document).ready(function($) {
+            $('#bgcld-test-connection').on('click', function() {
+                const button = $(this);
+                const resultDiv = $('#bgcld-connection-result');
+                
+                button.prop('disabled', true).text('Testing...');
+                resultDiv.show().html('<p>🔄 Connecting to ByteGrader server...</p>');
+                
+                $.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'bgcld_test_connection',
+                        nonce: '<?php echo wp_create_nonce('bgcld_test_connection'); ?>'
+                    },
+                    success: function(response) {
+                        button.prop('disabled', false).text('Test Connection');
+                        
+                        if (response.success) {
+                            resultDiv.html(
+                                '<div style="padding: 10px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px;">' +
+                                '<h4 style="margin-top: 0; color: #155724;">✅ Connection Successful</h4>' +
+                                '<pre style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 12px; overflow-x: auto;">' +
+                                JSON.stringify(response.data, null, 2) +
+                                '</pre>' +
+                                '</div>'
+                            );
+                        } else {
+                            resultDiv.html(
+                                '<div style="padding: 10px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px;">' +
+                                '<h4 style="margin-top: 0; color: #721c24;">❌ Connection Failed</h4>' +
+                                '<p style="margin-bottom: 0;">' + (response.data || 'Unknown error') + '</p>' +
+                                '</div>'
+                            );
+                        }
+                    },
+                    error: function() {
+                        button.prop('disabled', false).text('Test Connection');
+                        resultDiv.html(
+                            '<div style="padding: 10px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px;">' +
+                            '<h4 style="margin-top: 0; color: #721c24;">❌ Request Failed</h4>' +
+                            '<p style="margin-bottom: 0;">Could not connect to WordPress. Please try again.</p>' +
+                            '</div>'
+                        );
+                    }
+                });
+            });
+        });
+        </script>
         <?php
     }
 
@@ -417,6 +472,67 @@ class LearnDashAutograderQuiz {
         }
         
         return $sanitized;
+    }
+
+    // Add settings link to the plugin action links
+    public function add_plugin_action_links($links) {
+        $settings_link = '<a href="' . admin_url('options-general.php?page=bytegrader-settings') . '">Settings</a>';
+        array_unshift($links, $settings_link);
+        return $links;
+    }
+
+    // Test connection to ByteGrader server via AJAX
+    public function ajax_test_connection() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'bgcld_test_connection')) {
+            wp_send_json_error('Security check failed');
+        }
+        
+        // Check user permissions
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+        
+        // Get settings
+        $settings = $this->get_bytegrader_settings();
+        
+        if (empty($settings['server_url']) || empty($settings['api_key'])) {
+            wp_send_json_error('Please save your server URL and API key first');
+        }
+        
+        // Build the config endpoint URL
+        $config_url = rtrim($settings['server_url'], '/') . '/config';
+        
+        // Make the request
+        $response = wp_remote_get($config_url, array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $settings['api_key'],
+                'Content-Type' => 'application/json'
+            ),
+            'timeout' => 15
+        ));
+        
+        // Check for errors
+        if (is_wp_error($response)) {
+            wp_send_json_error('Connection error: ' . $response->get_error_message());
+        }
+        
+        $status_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+        
+        if ($status_code !== 200) {
+            wp_send_json_error("Server returned status {$status_code}: " . $body);
+        }
+        
+        // Try to decode JSON
+        $json_data = json_decode($body, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            wp_send_json_error('Invalid JSON response from server');
+        }
+        
+        // Success!
+        wp_send_json_success($json_data);
     }
     
     /***************************************************************************
