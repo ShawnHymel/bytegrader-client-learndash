@@ -108,6 +108,24 @@
     color: #333;
 }
 
+.bgcld-attribution {
+    text-align: center;
+    margin-top: 20px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.bgcld-attribution a {
+    color: #0073aa;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.bgcld-attribution a:hover {
+    text-decoration: underline;
+}
+
 /* File info */
 .bgcld-file-info {
     background: #f8f9fa;

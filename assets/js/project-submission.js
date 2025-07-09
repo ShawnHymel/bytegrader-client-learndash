@@ -224,20 +224,15 @@ jQuery(document).ready(function($) {
         
         let html = `✅ Grading completed in ${elapsedSeconds} seconds!<br>`;
         html += `<strong>Score: ${jobData.score}%</strong>`;
-        
-        if (jobData.feedback) {
-            html += `<br><br><details style="margin-top: 10px;"><summary><strong>Detailed Feedback</strong></summary>`;
-            html += `<pre style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 12px; white-space: pre-wrap; max-height: 200px; overflow-y: auto;">${jobData.feedback}</pre>`;
-            html += `</details>`;
-        }
+        html += `<br><br><small style="color: #666;">The page will update to show your results and detailed feedback.</small>`;
         
         statusMsg.html(html);
         
-        // Reload page after 3 seconds to show LearnDash completion state
+        // Reload page after 2 seconds to show persistent completion state (reduced from 3 seconds)
         setTimeout(() => {
             debugLog('🔄 Reloading page to show completion state...');
             location.reload();
-        }, 3000);
+        }, 2000);
     }
     
     // Show failed result

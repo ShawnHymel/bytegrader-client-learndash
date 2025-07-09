@@ -661,6 +661,15 @@ class LearnDashAutograderQuiz {
             // If completed, submit to LearnDash
             if ($parsed_status['status'] === 'completed' && $parsed_status['score'] !== null) {
                 $this->submit_quiz_result($user_id, $quiz_id, $parsed_status['score']);
+                
+                // Store detailed attempt info for display
+                $this->store_latest_attempt(
+                    $user_id, 
+                    $quiz_id, 
+                    $parsed_status['score'], 
+                    $parsed_status['feedback'], 
+                    $parsed_status['job_id']
+                );
             }
             
             wp_send_json_success($parsed_status);
@@ -685,22 +694,71 @@ class LearnDashAutograderQuiz {
         }
     }
 
+    // Construct HTML for feedback to user
     private function render_progress_status($best_score, $passing_grade, $attempt_count, $passed) {
-        return '<div class="bgcld-progress">
+        $user_id = get_current_user_id();
+        $quiz_id = get_the_ID();
+        $latest_attempt = $this->get_latest_attempt($user_id, $quiz_id);
+        
+        $html = '<div class="bgcld-progress">
                     <h4>📊 Try Again!</h4>
-                    <p><strong>Best Score:</strong> ' . $best_score . '% (Need: ' . $passing_grade . '%)</p>
-                    <p><strong>Attempts:</strong> ' . $attempt_count . '</p>
-                    <p>Try again to continue with the course. You may submit again to improve your score.</p>
+                    <div class="bgcld-stats">
+                        <p><strong>Best Score:</strong> ' . $best_score . '% (Need: ' . $passing_grade . '%)</p>
+                        <p><strong>Attempts:</strong> ' . $attempt_count . '</p>';
+        
+        // Add latest attempt details
+        if ($latest_attempt && !empty($latest_attempt['feedback'])) {
+            $latest_score = $latest_attempt['score'];
+            $latest_feedback = $latest_attempt['feedback'];
+            $timestamp = date('M j, Y g:i A', $latest_attempt['timestamp']);
+            
+            $html .= '<p><strong>Latest Attempt:</strong> ' . $latest_score . '% (submitted ' . $timestamp . ')</p>';
+            $html .= '<details style="margin-top: 15px;">
+                        <summary><strong>Latest Attempt Feedback</strong></summary>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; margin-top: 10px;">
+                            <pre style="white-space: pre-wrap; font-family: inherit; margin: 0; font-size: 14px;">' . esc_html($latest_feedback) . '</pre>
+                        </div>
+                      </details>';
+        }
+        
+        $html .= '    <p>Submit again to improve your score and continue with the course.</p>
+                    </div>
                 </div>';
+        
+        return $html;
     }
     
+    // Cosntruct HTML for completion and feedback section
     private function render_completion_status($best_score, $passing_grade, $attempt_count, $quiz_id) {
-        return '<div class="bgcld-completion">
+        $user_id = get_current_user_id();
+        $latest_attempt = $this->get_latest_attempt($user_id, $quiz_id);
+        
+        $html = '<div class="bgcld-completion">
                     <h4>✅ Assignment Completed Successfully!</h4>
-                    <p><strong>Best Score:</strong> ' . $best_score . '% (Passing: ' . $passing_grade . '%)</p>
-                    <p><strong>Attempts:</strong> ' . $attempt_count . '</p>
-                    <p>You may continue to the next lesson, but feel free to submit again to improve your score (max is 100%).</p>
+                    <div class="bgcld-stats">
+                        <p><strong>Best Score:</strong> ' . $best_score . '% (Passing: ' . $passing_grade . '%)</p>
+                        <p><strong>Total Attempts:</strong> ' . $attempt_count . '</p>';
+        
+        // Add latest attempt details if available
+        if ($latest_attempt && !empty($latest_attempt['feedback'])) {
+            $latest_score = $latest_attempt['score'];
+            $latest_feedback = $latest_attempt['feedback'];
+            $timestamp = date('M j, Y g:i A', $latest_attempt['timestamp']);
+            
+            $html .= '<p><strong>Latest Attempt:</strong> ' . $latest_score . '% (submitted ' . $timestamp . ')</p>';
+            $html .= '<details style="margin-top: 15px;">
+                        <summary><strong>Latest Attempt Feedback</strong></summary>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; margin-top: 10px;">
+                            <pre style="white-space: pre-wrap; font-family: inherit; margin: 0; font-size: 14px;">' . esc_html($latest_feedback) . '</pre>
+                        </div>
+                      </details>';
+        }
+        
+        $html .= '    <p>You may continue to the next lesson, but feel free to submit again to improve your score (max is 100%).</p>
+                    </div>
                 </div>';
+        
+        return $html;
     }
     
     private function render_submission_form($quiz_id, $show_next_button = false, $next_lesson_url = null) {
@@ -747,6 +805,11 @@ class LearnDashAutograderQuiz {
                                     </a>
                                 </div>';
         }
+        
+        // Add ByteGrader attribution
+        $submission_form .= '<div class="bgcld-attribution">
+                                <small>Powered by <a href="https://github.com/ShawnHymel/bytegrader" target="_blank">ByteGrader</a> - Open Source Autograding</small>
+                            </div>';
     
         return $submission_form;
     }
@@ -1074,13 +1137,13 @@ class LearnDashAutograderQuiz {
         return null;
     }
     
+    // Get assignment ID
     private function get_quiz_assignment_id($quiz_id) {
         return get_post_meta($quiz_id, '_bytegrader_assignment_id', true);
     }
     
+    // Update user progress based on quiz results
     private function submit_quiz_result($user_id, $quiz_id, $score_percent) {
-        
-        
         $this->debug("📊 Starting quiz submission for user_id: $user_id, quiz_id: $quiz_id, score: $score_percent%");
         
         // Get course ID
@@ -1126,6 +1189,28 @@ class LearnDashAutograderQuiz {
         }
         
         return true;
+    }
+    
+    // Store latest attempt details for display
+    private function store_latest_attempt($user_id, $quiz_id, $score, $feedback, $job_id) {
+        $attempt_data = array(
+            'score' => $score,
+            'feedback' => $feedback,
+            'job_id' => $job_id,
+            'timestamp' => time(),
+            'assignment_id' => get_post_meta($quiz_id, '_bytegrader_assignment_id', true)
+        );
+        
+        $meta_key = '_bgcld_latest_attempt_' . $quiz_id;
+        update_user_meta($user_id, $meta_key, $attempt_data);
+        
+        $this->debug("Stored latest attempt for user {$user_id}, quiz {$quiz_id}: score {$score}%");
+    }
+    
+    // Get latest attempt details
+    private function get_latest_attempt($user_id, $quiz_id) {
+        $meta_key = '_bgcld_latest_attempt_' . $quiz_id;
+        return get_user_meta($user_id, $meta_key, true);
     }
 
     // Get ByteGrader settings from the database
