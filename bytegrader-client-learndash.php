@@ -316,7 +316,34 @@ class LearnDashAutograderQuiz {
                 wp_send_json_error('Invalid response from grading server: missing job ID');
             }
         } else {
-            wp_send_json_error('Submission failed: ' . $bytegrader_result['error']);
+            // Check if this is a duplicate submission error (409 Conflict)
+            $error_message = $bytegrader_result['error'];
+            
+            if (strpos($error_message, 'Server returned status 409') !== false) {
+                // Parse the response body for queue info
+                $response_body = $bytegrader_result['response_body'] ?? '';
+                $conflict_data = json_decode($response_body, true);
+                
+                if ($conflict_data && isset($conflict_data['queue_info'])) {
+                    $queue_info = $conflict_data['queue_info'];
+                    $queue_msg = '';
+                    
+                    if ($queue_info['queue_length'] > 0) {
+                        $queue_msg = " There are {$queue_info['queue_length']} jobs in the queue.";
+                    }
+                    
+                    wp_send_json_error(array(
+                        'type' => 'duplicate_submission',
+                        'message' => $conflict_data['error'] . $queue_msg,
+                        'existing_job_id' => $conflict_data['existing_job_id'] ?? '',
+                        'queue_info' => $queue_info
+                    ));
+                } else {
+                    wp_send_json_error('You already have a submission being graded. Please wait for it to complete.');
+                }
+            } else {
+                wp_send_json_error('Submission failed: ' . $error_message);
+            }
         }
     }
     
@@ -771,7 +798,9 @@ class LearnDashAutograderQuiz {
         if ($status_code !== 200) {
             return array(
                 'success' => false,
-                'error' => "Server returned status {$status_code}: " . $response_body
+                'error' => "Server returned status {$status_code}: " . $response_body,
+                'response_body' => $response_body,
+                'status_code' => $status_code
             );
         }
         

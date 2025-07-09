@@ -380,8 +380,14 @@ jQuery(document).ready(function($) {
                     }, 1000); // Wait 1 second before starting to poll
                     
                 } else {
-                    statusDiv.removeClass('processing').addClass('error');
-                    statusMsg.html('❌ Error: ' + (response.data || 'Upload failed'));
+                    // Check if this is a duplicate submission error
+                    if (response.data && response.data.type === 'duplicate_submission') {
+                        statusDiv.removeClass('processing').addClass('neutral');
+                        statusMsg.html('⚠️ ' + response.data.message + '<br><small>Please wait for your current submission to complete before trying again.</small>');
+                    } else {
+                        statusDiv.removeClass('processing').addClass('error');
+                        statusMsg.html('❌ Error: ' + (response.data.message || response.data || 'Upload failed'));
+                    }
                     button.prop('disabled', false);
                 }
             },
