@@ -599,6 +599,14 @@ class LearnDashAutograderQuiz {
         if ($status_result['success']) {
             $parsed_status = $this->parse_job_status($status_result['data']);
             
+            // If job is queued, also get queue information
+            if ($parsed_status['status'] === 'queued') {
+                $queue_result = $this->check_bytegrader_queue($settings, $username);
+                if ($queue_result['success']) {
+                    $parsed_status['queue_info'] = $queue_result['data'];
+                }
+            }
+            
             // If completed, submit to LearnDash
             if ($parsed_status['status'] === 'completed' && $parsed_status['score'] !== null) {
                 $this->submit_quiz_result($user_id, $quiz_id, $parsed_status['score']);
@@ -887,6 +895,65 @@ class LearnDashAutograderQuiz {
         }
         
         return $parsed;
+    }
+    
+    // Check ByteGrader queue status
+    private function check_bytegrader_queue($settings, $username) {
+        
+        // Build the queue endpoint URL
+        $queue_url = rtrim($settings['server_url'], '/') . '/queue';
+        
+        $this->debug("Checking ByteGrader queue: {$queue_url}");
+        
+        // Set up headers
+        $headers = array(
+            'X-API-Key' => $settings['api_key'],
+            'X-Username' => $username,
+            'Content-Type' => 'application/json'
+        );
+        
+        // Make the request
+        $response = wp_remote_get($queue_url, array(
+            'headers' => $headers,
+            'timeout' => 10,
+            'sslverify' => true
+        ));
+        
+        // Check for errors
+        if (is_wp_error($response)) {
+            $this->debug('ByteGrader queue check error: ' . $response->get_error_message());
+            return array(
+                'success' => false,
+                'error' => 'Connection error: ' . $response->get_error_message()
+            );
+        }
+        
+        $status_code = wp_remote_retrieve_response_code($response);
+        $response_body = wp_remote_retrieve_body($response);
+        
+        $this->debug("ByteGrader queue response code: {$status_code}");
+        $this->debug("ByteGrader queue response body: " . $response_body);
+        
+        if ($status_code !== 200) {
+            return array(
+                'success' => false,
+                'error' => "Server returned status {$status_code}: " . $response_body
+            );
+        }
+        
+        // Try to decode JSON response
+        $json_data = json_decode($response_body, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return array(
+                'success' => false,
+                'error' => 'Invalid JSON response from server'
+            );
+        }
+        
+        return array(
+            'success' => true,
+            'data' => $json_data
+        );
     }
 
     private function get_quiz_passing_grade($quiz_id) {
