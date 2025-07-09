@@ -10,6 +10,7 @@ jQuery(document).ready(function($) {
     let pollingUsername = null;
     let pollingStartTime = null;
     let pollingAttempts = 0;
+    let beforeUnloadHandler = null;
     const MAX_POLLING_ATTEMPTS = 60; // 5 minutes at 5-second intervals
     const POLLING_INTERVAL_MS = 5000; // 5 seconds
 
@@ -28,6 +29,9 @@ jQuery(document).ready(function($) {
         pollingStartTime = Date.now();
         pollingAttempts = 0;
         
+        // Add browser exit warning
+        addBrowserExitWarning();
+        
         // Check immediately
         checkJobStatus();
         
@@ -41,6 +45,34 @@ jQuery(document).ready(function($) {
             clearInterval(pollingInterval);
             pollingInterval = null;
             console.log('⏹️ Stopped status polling');
+        }
+        
+        // Remove browser exit warning
+        removeBrowserExitWarning();
+    }
+    
+    // Function to add the warning
+    function addBrowserExitWarning() {
+        if (!beforeUnloadHandler) {
+            beforeUnloadHandler = function(e) {
+                if (pollingInterval) {
+                    e.preventDefault();
+                    e.returnValue = 'Your submission is still being graded. Are you sure you want to leave?';
+                    return e.returnValue;
+                }
+            };
+            
+            window.addEventListener('beforeunload', beforeUnloadHandler);
+            console.log('🚨 Browser exit warning enabled');
+        }
+    }
+    
+    // Function to remove the warning
+    function removeBrowserExitWarning() {
+        if (beforeUnloadHandler) {
+            window.removeEventListener('beforeunload', beforeUnloadHandler);
+            beforeUnloadHandler = null;
+            console.log('✅ Browser exit warning disabled');
         }
     }
     
@@ -114,18 +146,23 @@ jQuery(document).ready(function($) {
                     const activeJobs = queueInfo.active_jobs || 0;
                     const maxConcurrent = queueInfo.max_concurrent || 1;
                     
-                    if (queueLength > 1) {
-                        // Multiple people ahead
-                        queueMsg = `⏳ ${queueLength - 1} submissions ahead of you (${elapsedSeconds}s elapsed)`;
-                    } else if (queueLength === 1) {
-                        // You're next
-                        queueMsg = `⏳ You're next in line! (${elapsedSeconds}s elapsed)`;
+                    // Total jobs ahead = active jobs + jobs in queue - 1 (user's job is in the queue count)
+                    const jobsAhead = activeJobs + queueLength - 1;
+                    
+                    // Display different messages based on user's position in the queue
+                    if (jobsAhead > 1) {
+                        queueMsg = `⏳ ${jobsAhead} submissions ahead of you (${elapsedSeconds}s elapsed)<br>` +
+                                  `<small style="color: #666;">Please keep this window open.</small>`;
+                    } else if (jobsAhead === 1) {
+                        queueMsg = `⏳ 1 submission ahead of you (${elapsedSeconds}s elapsed)<br>` +
+                                  `<small style="color: #666;">Please keep this window open.</small>`;
                     } else if (activeJobs >= maxConcurrent) {
                         // No queue, but graders are busy
-                        queueMsg = `⏳ Grader is busy, starting soon... (${elapsedSeconds}s elapsed)`;
+                        queueMsg = `⏳  Your submission is next. Waiting for grader to free up... (${elapsedSeconds}s elapsed)<br>` +
+                                  `<small style="color: #666;">Please keep this window open.</small>`;
                     } else {
-                        // Should start immediately
-                        queueMsg = `⏳ Starting grading now... (${elapsedSeconds}s elapsed)`;
+                        queueMsg = `⏳ Starting grading now... (${elapsedSeconds}s elapsed)<br>` +
+                                  `<small style="color: #666;">Please keep this window open.</small>`;
                     }
                     
                     // Keep detailed info in console for debugging
@@ -136,7 +173,8 @@ jQuery(document).ready(function($) {
                 break;
                 
             case 'processing':
-                statusMsg.html(`⚙️ Grading your project... (${elapsedSeconds}s elapsed)`);
+                statusMsg.html(`⚙️ Grading your project... (${elapsedSeconds}s elapsed)<br>` +
+                                  `<small style="color: #666;">Please keep this window open.</small>`);
                 break;
                 
             case 'completed':
@@ -170,6 +208,9 @@ jQuery(document).ready(function($) {
         
         statusDiv.removeClass('processing').addClass('success');
         
+        // Remove warning immediately when completed
+        removeBrowserExitWarning();
+        
         let html = `✅ Grading completed in ${elapsedSeconds} seconds!<br>`;
         html += `<strong>Score: ${jobData.score}%</strong>`;
         
@@ -194,6 +235,9 @@ jQuery(document).ready(function($) {
         const statusMsg = $('.bgcld-message');
         
         statusDiv.removeClass('processing').addClass('error');
+        
+        // Remove warning when failed
+        removeBrowserExitWarning();
         
         let html = `❌ Grading failed after ${elapsedSeconds} seconds`;
         
@@ -220,6 +264,9 @@ jQuery(document).ready(function($) {
         
         statusDiv.removeClass('processing').addClass('error');
         statusMsg.html(`⏰ ${message}`);
+        
+        // Remove warning on timeout/error
+        removeBrowserExitWarning();
         
         // Re-enable submit button
         $('#bgcld-submit-project').prop('disabled', false);
@@ -324,7 +371,8 @@ jQuery(document).ready(function($) {
                     const jobId = response.data.job_id;
                     const username = response.data.username;
                     
-                    statusMsg.html('✅ File uploaded successfully! Starting grading...');
+                    statusMsg.html('✅ File uploaded successfully! Starting grading...<br>' +
+                                   '<small style="color: #666;">⚠️ Please keep this window open during grading.</small>');
                     
                     // Start polling for status
                     setTimeout(() => {

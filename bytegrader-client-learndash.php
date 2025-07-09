@@ -662,6 +662,10 @@ class LearnDashAutograderQuiz {
                                 <h3>📁 Project Submission</h3>
                                 <div class="bgcld-upload-area">
                                     <p>📤 Drop your project file here or click to browse</p>
+                                    <p style="font-size: 14px; color: #666; margin-top: 10px;">
+                                        ⚠️ <strong>Important:</strong> Keep this window open during grading. 
+                                        Closing the browser will interrupt the process, and you will need to resubmit.
+                                    </p>
                                     <input type="file" id="bgcld-project-file" accept=".zip,.tar.gz,.tar" style="display: none;" />
                                     <button type="button" class="button button-primary button-large" id="bgcld-choose-file">
                                         Choose Project File
