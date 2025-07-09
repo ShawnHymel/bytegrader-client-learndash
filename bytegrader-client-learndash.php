@@ -98,7 +98,8 @@ class LearnDashAutograderQuiz {
         wp_localize_script('bgcld-project-submission', 'bgcld_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('bgcld_upload_nonce'),
-            'quiz_id' => $post->ID
+            'quiz_id' => $post->ID,
+            'debug_mode' => $this->get_debug_mode()
         ));
     }
     
@@ -422,6 +423,15 @@ class LearnDashAutograderQuiz {
             'bytegrader_settings',
             'bytegrader_main_section'
         );
+        
+        // Debug field
+        add_settings_field(
+            'debug_mode',
+            'Debug Mode',
+            array($this, 'debug_mode_field_callback'),
+            'bytegrader_settings',
+            'bytegrader_main_section'
+        );
     }
 
     // Add HTML to the admin page
@@ -522,6 +532,18 @@ class LearnDashAutograderQuiz {
         echo '<input type="password" name="bytegrader_options[api_key]" value="' . esc_attr($api_key) . '" class="regular-text" placeholder="Enter your API key" />';
         echo '<p class="description">Your ByteGrader API key for authentication</p>';
     }
+    
+    // Callback: set debug mode
+    public function debug_mode_field_callback() {
+        $options = get_option('bytegrader_options', array());
+        $debug_mode = isset($options['debug_mode']) ? $options['debug_mode'] : false;
+        
+        echo '<label>';
+        echo '<input type="checkbox" name="bytegrader_options[debug_mode]" value="1" ' . checked(1, $debug_mode, false) . ' />';
+        echo ' Enable debug console logging';
+        echo '</label>';
+        echo '<p class="description">Shows detailed logging in browser console for troubleshooting</p>';
+    }
 
     // Sanitize settings input - ensures data is safe before saving
     public function sanitize_settings($input) {
@@ -534,6 +556,8 @@ class LearnDashAutograderQuiz {
         if (isset($input['api_key'])) {
             $sanitized['api_key'] = sanitize_text_field($input['api_key']);
         }
+        
+        $sanitized['debug_mode'] = isset($input['debug_mode']) ? true : false;
         
         return $sanitized;
     }
@@ -1112,6 +1136,12 @@ class LearnDashAutograderQuiz {
         );
         
         return wp_parse_args(get_option('bytegrader_options', array()), $defaults);
+    }
+    
+    // Get debug mode setting
+    private function get_debug_mode() {
+        $options = get_option('bytegrader_options', array());
+        return isset($options['debug_mode']) ? $options['debug_mode'] : false;
     }
 }
 

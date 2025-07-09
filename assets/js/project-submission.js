@@ -1,6 +1,6 @@
 jQuery(document).ready(function($) {
-    console.log('🚀 Project submission interface loaded');
     
+    // Initialize variables
     let selectedFile = null;
     let defaultFileSizeMB = 10; // Default max file size in MB
     
@@ -13,6 +13,17 @@ jQuery(document).ready(function($) {
     let beforeUnloadHandler = null;
     const MAX_POLLING_ATTEMPTS = 60; // 5 minutes at 5-second intervals
     const POLLING_INTERVAL_MS = 5000; // 5 seconds
+    
+    // Debug wrapper function
+    function debugLog(message, data = null) {
+        if (bgcld_ajax.debug_mode) {
+            if (data !== null) {
+                console.log(message, data);
+            } else {
+                console.log(message);
+            }
+        }
+    }
 
     // See if the file size is less than or equal to the specified size
     function validateFileSize(file, maxSizeMB) {
@@ -22,7 +33,7 @@ jQuery(document).ready(function($) {
     
     // Start polling for job status
     function startPolling(jobId, username, quizId) {
-        console.log('📊 Starting status polling for job:', jobId);
+        debugLog('📊 Starting status polling for job:', jobId);
         
         pollingJobId = jobId;
         pollingUsername = username;
@@ -44,7 +55,7 @@ jQuery(document).ready(function($) {
         if (pollingInterval) {
             clearInterval(pollingInterval);
             pollingInterval = null;
-            console.log('⏹️ Stopped status polling');
+            debugLog('⏹️ Stopped status polling');
         }
         
         // Remove browser exit warning
@@ -63,7 +74,7 @@ jQuery(document).ready(function($) {
             };
             
             window.addEventListener('beforeunload', beforeUnloadHandler);
-            console.log('🚨 Browser exit warning enabled');
+            debugLog('🚨 Browser exit warning enabled');
         }
     }
     
@@ -72,7 +83,7 @@ jQuery(document).ready(function($) {
         if (beforeUnloadHandler) {
             window.removeEventListener('beforeunload', beforeUnloadHandler);
             beforeUnloadHandler = null;
-            console.log('✅ Browser exit warning disabled');
+            debugLog('✅ Browser exit warning disabled');
         }
     }
     
@@ -83,7 +94,7 @@ jQuery(document).ready(function($) {
         pollingAttempts++;
         const elapsedSeconds = Math.floor((Date.now() - pollingStartTime) / 1000);
         
-        console.log(`🔍 Checking job status (attempt ${pollingAttempts}, ${elapsedSeconds}s elapsed)`);
+        debugLog(`🔍 Checking job status (attempt ${pollingAttempts}, ${elapsedSeconds}s elapsed)`);
         
         $.ajax({
             url: bgcld_ajax.ajax_url,
@@ -96,7 +107,7 @@ jQuery(document).ready(function($) {
                 quiz_id: bgcld_ajax.quiz_id
             },
             success: function(response) {
-                console.log('📨 Status check response:', response);
+                debugLog('📨 Status check response:', response);
                 handleStatusResponse(response, elapsedSeconds);
             },
             error: function(xhr, status, error) {
@@ -133,7 +144,7 @@ jQuery(document).ready(function($) {
         const jobData = response.data;
         const status = jobData.status;
         
-        console.log(`📋 Job status: ${status}`);
+        debugLog(`📋 Job status: ${status}`);
         
         switch (status) {
             case 'queued':
@@ -166,7 +177,7 @@ jQuery(document).ready(function($) {
                     }
                     
                     // Keep detailed info in console for debugging
-                    console.log(`📊 Queue details: ${queueLength} queued, ${activeJobs}/${maxConcurrent} active graders`);
+                    debugLog(`📊 Queue details: ${queueLength} queued, ${activeJobs}/${maxConcurrent} active graders`);
                 }
                 
                 statusMsg.html(queueMsg);
@@ -178,13 +189,13 @@ jQuery(document).ready(function($) {
                 break;
                 
             case 'completed':
-                console.log('✅ Grading completed!');
+                debugLog('✅ Grading completed!');
                 showCompletedResult(jobData, elapsedSeconds);
                 stopPolling();
                 break;
                 
             case 'failed':
-                console.log('❌ Grading failed');
+                debugLog('❌ Grading failed');
                 showFailedResult(jobData, elapsedSeconds);
                 stopPolling();
                 break;
@@ -224,7 +235,7 @@ jQuery(document).ready(function($) {
         
         // Reload page after 3 seconds to show LearnDash completion state
         setTimeout(() => {
-            console.log('🔄 Reloading page to show completion state...');
+            debugLog('🔄 Reloading page to show completion state...');
             location.reload();
         }, 3000);
     }
@@ -281,7 +292,7 @@ jQuery(document).ready(function($) {
         const file = e.target.files[0];
         if (file) {
             selectedFile = file;
-            console.log('📁 File selected:', file.name);
+            debugLog('📁 File selected:', file.name);
 
             // Check if file size exceeds the limit
             const maxFileSizeMB = $('#bgcld-submit-project').data('max-file-size') || defaultFileSizeMB;
@@ -336,7 +347,7 @@ jQuery(document).ready(function($) {
             return;
         }
         
-        console.log('🚀 Submitting project:', selectedFile.name);
+        debugLog('🚀 Submitting project:', selectedFile.name);
         
         const button = $(this);
         const statusDiv = $('.bgcld-status');
@@ -364,7 +375,7 @@ jQuery(document).ready(function($) {
             processData: false,
             contentType: false,
             success: function(response) {
-                console.log('✅ Upload response:', response);
+                debugLog('✅ Upload response:', response);
                 
                 if (response.success) {
                     // Extract job info and start polling
