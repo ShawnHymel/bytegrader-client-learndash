@@ -43,14 +43,20 @@ spl_autoload_register(function ($class_name) {
     }
 });
 
-// Initialize plugin
-add_action('plugins_loaded', function() {
-    if (!class_exists('BGCLD_Plugin')) {
-        require_once BGCLD_PLUGIN_DIR . 'includes/class-bgcld-plugin.php';
-    }
-    
-    BGCLD_Plugin::get_instance();
-});
+// Initialize plugin - ensure it only happens once globally
+if (!isset($GLOBALS['bgcld_plugin_initialized'])) {
+    add_action('plugins_loaded', function() {
+        if (!isset($GLOBALS['bgcld_plugin_initialized'])) {
+            $GLOBALS['bgcld_plugin_initialized'] = true;
+            
+            if (!class_exists('BGCLD_Plugin')) {
+                require_once BGCLD_PLUGIN_DIR . 'includes/class-bgcld-plugin.php';
+            }
+            
+            BGCLD_Plugin::get_instance();
+        }
+    });
+}
 
 // Activation/deactivation hooks
 register_activation_hook(__FILE__, array('BGCLD_Plugin', 'activate'));
