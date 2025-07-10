@@ -28,6 +28,16 @@ class BGCLD_Plugin {
     // Constructor - initialize the plugin components (private = singleton pattern)
     private function __construct() {
 
+        // ***Debug: trace plugin instantiation
+        error_log('[BGCLD] BGCLD_Plugin constructor called');
+        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5);
+        foreach ($backtrace as $i => $trace) {
+            $file = isset($trace['file']) ? basename($trace['file']) : 'unknown';
+            $line = isset($trace['line']) ? $trace['line'] : 'unknown';
+            $function = isset($trace['function']) ? $trace['function'] : 'unknown';
+            error_log("  [$i] $function() in $file:$line");
+        }
+
         // Initialize components
         $this->quiz_manager = new BGCLD_Quiz_Manager();
         $this->settings = new BGCLD_Settings();

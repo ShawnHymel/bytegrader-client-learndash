@@ -12,6 +12,10 @@ class BGCLD_Ajax_Handlers {
     private $settings;
     
     public function __construct() {
+
+        // ***Debug: trace AJAX handlers instantiation
+        error_log('[BGCLD] BGCLD_Ajax_Handlers constructor called');
+
         $this->bytegrader_client = new BGCLD_Bytegrader_Client();
         $this->quiz_manager = new BGCLD_Quiz_Manager();
         $this->version_checker = new BGCLD_Version_Checker();
