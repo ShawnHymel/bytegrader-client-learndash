@@ -3,7 +3,7 @@
  * Plugin Name: ByteGrader Client for LearnDash
  * Plugin URI: https://github.com/ShawnHymel/bytegrader-client-learndash
  * Description: Integrates ByteGrader autograding service with LearnDash LMS for automated code assessment
- * Version: 0.8.0
+ * Version: 0.8.1
  * Author: Shawn Hymel
  * Author URI: https://shawnhymel.com
  * License: MIT
@@ -20,8 +20,11 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Version
-define('BGCLD_VERSION', '0.8.0');
+// Version compatibility
+define('BGCLD_VERSION', '0.8.1');
+define('BGCLD_MIN_BYTEGRADER_VERSION', '0.8.0');
+define('BGCLD_MAX_BYTEGRADER_VERSION', '0.9.999'); // Allow patch versions
+define('BGCLD_TESTED_BYTEGRADER_VERSION', '0.8.2');
 
 // Plugin paths
 define('BGCLD_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -477,12 +480,56 @@ class LearnDashAutograderQuiz {
                         button.prop('disabled', false).text('Test Connection');
                         
                         if (response.success) {
+                            let statusClass = 'success';
+                            let statusIcon = '✅';
+                            let statusTitle = 'Connection Successful';
+                            
+                            // Check for version compatibility warning
+                            if (response.data.compatibility && !response.data.compatibility.compatible) {
+                                statusClass = 'warning';
+                                statusIcon = '⚠️';
+                                statusTitle = 'Connection Successful (Version Warning)';
+                            }
+                            
+                            let versionInfo = '';
+                            if (response.data.version_info && response.data.compatibility) {
+                                const vi = response.data.version_info;
+                                const comp = response.data.compatibility;
+                                
+                                versionInfo = `
+                                    <h5>Version Compatibility</h5>
+                                    <p><strong>Server Version:</strong> ${vi.version || 'Unknown'}</p>
+                                    <p><strong>Client Version:</strong> ${comp.client_version || 'Unknown'}</p>
+                                    <p><strong>Status:</strong> ${comp.message || 'Unknown'}</p>
+                                `;
+                                
+                                // Add build info if available
+                                if (vi.build_time || vi.git_commit) {
+                                    versionInfo += `<p><strong>Build Info:</strong> `;
+                                    if (vi.build_time) versionInfo += `Built ${vi.build_time}`;
+                                    if (vi.git_commit) versionInfo += ` (${vi.git_commit})`;
+                                    versionInfo += `</p>`;
+                                }
+                            } else if (response.data.version_info && !response.data.version_info.success) {
+                                versionInfo = `
+                                    <h5>Version Check</h5>
+                                    <p style="color: #d63384;"><strong>Warning:</strong> Could not retrieve version info - ${response.data.version_info.error}</p>
+                                `;
+                            }
+                            
+                            let configInfo = '';
+                            if (response.data.config) {
+                                configInfo = `
+                                    <h5>Server Configuration</h5>
+                                    <pre style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 12px; overflow-x: auto;">${JSON.stringify(response.data.config, null, 2)}</pre>
+                                `;
+                            }
+                            
                             resultDiv.html(
-                                '<div style="padding: 10px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px;">' +
-                                '<h4 style="margin-top: 0; color: #155724;">✅ Connection Successful</h4>' +
-                                '<pre style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 12px; overflow-x: auto;">' +
-                                JSON.stringify(response.data, null, 2) +
-                                '</pre>' +
+                                `<div style="padding: 10px; background: ${statusClass === 'success' ? '#d4edda' : '#fff3cd'}; border: 1px solid ${statusClass === 'success' ? '#c3e6cb' : '#ffeaa7'}; border-radius: 4px;">` +
+                                `<h4 style="margin-top: 0; color: ${statusClass === 'success' ? '#155724' : '#856404'};">${statusIcon} ${statusTitle}</h4>` +
+                                versionInfo +
+                                configInfo +
                                 '</div>'
                             );
                         } else {
@@ -588,39 +635,33 @@ class LearnDashAutograderQuiz {
             wp_send_json_error('Please save your server URL and API key first');
         }
         
-        // Build the config endpoint URL
-        $config_url = rtrim($settings['server_url'], '/') . '/config';
+        // Get server information
+        $config_result = $this->get_server_config($settings);
+        $version_result = $this->get_server_version($settings);  // This should return raw version data
         
-        // Make the request
-        $response = wp_remote_get($config_url, array(
-            'headers' => array(
-                'Authorization' => 'Bearer ' . $settings['api_key'],
-                'Content-Type' => 'application/json'
-            ),
-            'timeout' => 15
-        ));
-        
-        // Check for errors
-        if (is_wp_error($response)) {
-            wp_send_json_error('Connection error: ' . $response->get_error_message());
+        // If we can't connect at all, fail early
+        if (!$config_result['success']) {
+            wp_send_json_error($config_result['error']);
         }
         
-        $status_code = wp_remote_retrieve_response_code($response);
-        $body = wp_remote_retrieve_body($response);
-        
-        if ($status_code !== 200) {
-            wp_send_json_error("Server returned status {$status_code}: " . $body);
+        // Check version compatibility if we got version info
+        $compatibility_check = null;
+        if ($version_result['success'] && $version_result['version']) {
+            $compatibility_check = $this->check_version_compatibility($version_result['version']);
         }
         
-        // Try to decode JSON
-        $json_data = json_decode($body, true);
+        $response_data = array(
+            'config' => $config_result['config'],
+            'version_info' => $version_result,  // Use the raw version result
+            'compatibility' => $compatibility_check  // Use the compatibility check result
+        );
         
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            wp_send_json_error('Invalid JSON response from server');
+        // Add warning if version is incompatible
+        if ($compatibility_check && !$compatibility_check['compatible']) {
+            $response_data['warning'] = $compatibility_check['message'];
         }
         
-        // Success!
-        wp_send_json_success($json_data);
+        wp_send_json_success($response_data);
     }
     
     // AJAX handler to check job status
@@ -692,6 +733,189 @@ class LearnDashAutograderQuiz {
                 error_log('[BGCLD] ' . $msg);
             }
         }
+    }
+    
+    // Get configuration settings from the server
+    private function get_server_config($settings) {
+        $config_url = rtrim($settings['server_url'], '/') . '/config';
+        
+        $response = wp_remote_get($config_url, array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $settings['api_key'],
+                'Content-Type' => 'application/json'
+            ),
+            'timeout' => 15
+        ));
+        
+        if (is_wp_error($response)) {
+            return array(
+                'success' => false,
+                'error' => 'Connection error: ' . $response->get_error_message(),
+                'config' => null
+            );
+        }
+        
+        $status_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+        
+        if ($status_code !== 200) {
+            return array(
+                'success' => false,
+                'error' => "Server returned status {$status_code}: " . $body,
+                'config' => null
+            );
+        }
+        
+        $json_data = json_decode($body, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return array(
+                'success' => false,
+                'error' => 'Invalid JSON response from server',
+                'config' => null
+            );
+        }
+        
+        return array(
+            'success' => true,
+            'config' => $json_data
+        );
+    }
+    
+    // Get version number from ByteGrader /version endpoint
+    private function get_server_version($settings) {
+        $version_url = rtrim($settings['server_url'], '/') . '/version';
+        
+        $response = wp_remote_get($version_url, array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $settings['api_key'],
+                'Content-Type' => 'application/json'
+            ),
+            'timeout' => 10
+        ));
+        
+        if (is_wp_error($response)) {
+            return array(
+                'success' => false,
+                'error' => 'Could not check server version: ' . $response->get_error_message(),
+                'version' => null,
+                'build_time' => null,
+                'git_commit' => null
+            );
+        }
+        
+        $status_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+        
+        if ($status_code !== 200) {
+            return array(
+                'success' => false,
+                'error' => "Server version check failed (status $status_code): " . $body,
+                'version' => null,
+                'build_time' => null,
+                'git_commit' => null
+            );
+        }
+        
+        $version_data = json_decode($body, true);
+        if (!$version_data || !isset($version_data['version'])) {
+            return array(
+                'success' => false,
+                'error' => 'Invalid version response from server: ' . $body,
+                'version' => null,
+                'build_time' => null,
+                'git_commit' => null
+            );
+        }
+        
+        return array(
+            'success' => true,
+            'version' => $version_data['version'],
+            'build_time' => $version_data['build_time'] ?? null,
+            'git_commit' => $version_data['git_commit'] ?? null,
+            'error' => null
+        );
+    }
+    
+    // Check that the BGCLD is compatible with the server (based on min/max versions)
+    private function check_version_compatibility($server_version) {
+        if (version_compare($server_version, BGCLD_MIN_BYTEGRADER_VERSION, '<')) {
+            return array(
+                'compatible' => false,
+                'message' => "ByteGrader server version $server_version is too old. Minimum required: " . BGCLD_MIN_BYTEGRADER_VERSION,
+                'client_version' => BGCLD_VERSION,
+                'server_version' => $server_version
+            );
+        }
+        
+        if (version_compare($server_version, BGCLD_MAX_BYTEGRADER_VERSION, '>')) {
+            return array(
+                'compatible' => false,
+                'message' => "ByteGrader server version $server_version is too new. Maximum supported: " . BGCLD_MAX_BYTEGRADER_VERSION,
+                'client_version' => BGCLD_VERSION,
+                'server_version' => $server_version
+            );
+        }
+        
+        if (version_compare($server_version, BGCLD_TESTED_BYTEGRADER_VERSION, '!=')) {
+            return array(
+                'compatible' => true,
+                'message' => "ByteGrader server version $server_version is compatible but not fully tested. Tested with: " . BGCLD_TESTED_BYTEGRADER_VERSION,
+                'client_version' => BGCLD_VERSION,
+                'server_version' => $server_version
+            );
+        }
+        
+        return array(
+            'compatible' => true,
+            'message' => "ByteGrader server version $server_version is fully compatible",
+            'client_version' => BGCLD_VERSION,
+            'server_version' => $server_version
+        );
+    }
+    
+    // Read from the 
+    private function test_config_endpoint($settings) {
+        $config_url = rtrim($settings['server_url'], '/') . '/config';
+        
+        $response = wp_remote_get($config_url, array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $settings['api_key'],
+                'Content-Type' => 'application/json'
+            ),
+            'timeout' => 15
+        ));
+        
+        if (is_wp_error($response)) {
+            return array(
+                'success' => false,
+                'error' => 'Connection error: ' . $response->get_error_message()
+            );
+        }
+        
+        $status_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+        
+        if ($status_code !== 200) {
+            return array(
+                'success' => false,
+                'error' => "Server returned status {$status_code}: " . $body
+            );
+        }
+        
+        $json_data = json_decode($body, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return array(
+                'success' => false,
+                'error' => 'Invalid JSON response from server'
+            );
+        }
+        
+        return array(
+            'success' => true,
+            'data' => $json_data
+        );
     }
 
     // Construct HTML for feedback to user
@@ -816,6 +1040,13 @@ class LearnDashAutograderQuiz {
     
     // Construct request and send project submission to ByteGrader
     private function submit_to_bytegrader($settings, $assignment_id, $username, $file) {
+        
+        // Quick version compatibility check before submission
+        $version_check = $this->get_server_version($settings);
+        if (!$version_check['compatible']) {
+            $this->debug("Version compatibility warning: " . $version_check['message']);
+            // Log warning but continue - don't block submissions for minor version differences
+        }
         
         // Build the submit endpoint URL
         $submit_url = rtrim($settings['server_url'], '/') . '/submit?assignment=' . urlencode($assignment_id);
