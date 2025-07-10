@@ -49,7 +49,7 @@ add_action('plugins_loaded', function() {
         require_once BGCLD_PLUGIN_DIR . 'includes/class-bgcld-plugin.php';
     }
     
-    new BGCLD_Plugin();
+    BGCLD_Plugin::get_instance();
 });
 
 // Activation/deactivation hooks

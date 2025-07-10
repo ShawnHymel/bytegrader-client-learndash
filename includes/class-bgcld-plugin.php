@@ -7,6 +7,8 @@ if (!defined('ABSPATH')) {
 
 class BGCLD_Plugin {
 
+    // Singleton instance
+    private static $instance = null;
     private $quiz_manager;
     private $settings;
     private $ajax_handlers;
@@ -23,8 +25,8 @@ class BGCLD_Plugin {
         }
     }
 
-    // Constructor - initialize the plugin components
-    public function __construct() {
+    // Constructor - initialize the plugin components (private = singleton pattern)
+    private function __construct() {
 
         // Initialize components
         $this->quiz_manager = new BGCLD_Quiz_Manager();
@@ -34,6 +36,14 @@ class BGCLD_Plugin {
         // Core hooks
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
         add_filter('plugin_action_links_' . plugin_basename(BGCLD_PLUGIN_FILE), array($this, 'add_plugin_action_links'));
+    }
+
+    // Singleton pattern to prevent multiple instances
+    public static function get_instance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
     }
     
     // Load assets for the plugin
@@ -89,4 +99,10 @@ class BGCLD_Plugin {
     public static function deactivate() {
         flush_rewrite_rules();
     }
+
+    // Prevent cloning
+    private function __clone() {}
+    
+    // Prevent unserialization
+    public function __wakeup() {}
 }
