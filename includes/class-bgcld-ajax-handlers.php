@@ -16,8 +16,7 @@ class BGCLD_Ajax_Handlers {
         $this->quiz_manager = new BGCLD_Quiz_Manager();
         $this->version_checker = new BGCLD_Version_Checker();
         $this->settings = new BGCLD_Settings();
-    }
-
+        
         // Register AJAX handlers
         add_action('wp_ajax_bgcld_upload_project', array($this, 'handle_project_upload'));
         add_action('wp_ajax_nopriv_bgcld_upload_project', array($this, 'handle_project_upload'));

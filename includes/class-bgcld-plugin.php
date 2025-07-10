@@ -25,11 +25,6 @@ class BGCLD_Plugin {
 
     // Constructor - initialize the plugin components
     public function __construct() {
-        $this->init();
-    }
-
-    // Initialize the plugin components and hooks
-    public function init() {
 
         // Initialize components
         $this->quiz_manager = new BGCLD_Quiz_Manager();
