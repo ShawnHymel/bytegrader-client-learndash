@@ -8,18 +8,23 @@ class BGCLD_Ajax_Handlers {
 
     private $bytegrader_client;
     private $quiz_manager;
+    private $version_checker;
+    private $settings;
     
     public function __construct() {
         $this->bytegrader_client = new BGCLD_Bytegrader_Client();
         $this->quiz_manager = new BGCLD_Quiz_Manager();
-        
+        $this->version_checker = new BGCLD_Version_Checker();
+        $this->settings = new BGCLD_Settings();
+    }
+
         // Register AJAX handlers
         add_action('wp_ajax_bgcld_upload_project', array($this, 'handle_project_upload'));
         add_action('wp_ajax_nopriv_bgcld_upload_project', array($this, 'handle_project_upload'));
-        add_action('wp_ajax_bgcld_check_job_status', array($this, 'check_job_status'));
-        add_action('wp_ajax_bgcld_test_connection', array($this, 'test_connection'));
-        add_action('wp_ajax_get_next_lesson_url', array($this, 'get_next_lesson_url'));
-        add_action('wp_ajax_nopriv_get_next_lesson_url', array($this, 'get_next_lesson_url'));
+        add_action('wp_ajax_bgcld_check_job_status', array($this, 'ajax_check_job_status'));
+        add_action('wp_ajax_bgcld_test_connection', array($this, 'ajax_test_connection'));
+        add_action('wp_ajax_get_next_lesson_url', array($this, 'ajax_get_next_lesson_url'));
+        add_action('wp_ajax_nopriv_get_next_lesson_url', array($this, 'ajax_get_next_lesson_url'));
     }
 
     // Send project submission to ByteGrader server and wait for result
@@ -52,14 +57,8 @@ class BGCLD_Ajax_Handlers {
             wp_send_json_error("File too large. Maximum size is {$max_file_size}MB.");
         }
         
-        // Get ByteGrader settings
-        $settings = $this->get_bytegrader_settings();
-        if (empty($settings['server_url']) || empty($settings['api_key'])) {
-            wp_send_json_error('ByteGrader server not configured. Please contact your administrator.');
-        }
-        
         // Get assignment ID
-        $assignment_id = $this->get_quiz_assignment_id($quiz_id);
+        $assignment_id = $this->quiz_manager->get_quiz_assignment_id($quiz_id);
         if (empty($assignment_id)) {
             wp_send_json_error('Assignment ID not configured for this quiz. Please contact your administrator.');
         }
@@ -69,7 +68,7 @@ class BGCLD_Ajax_Handlers {
         $username = $user->user_login; // or use $user->user_email if you prefer
         
         // Submit to ByteGrader server
-        $bytegrader_result = $this->submit_to_bytegrader($settings, $assignment_id, $username, $file);
+        $bytegrader_result = $this->bytegrader_client->submit_project($assignment_id, $username, $file);
         
         if ($bytegrader_result['success']) {
             // Extract job ID from response
@@ -125,7 +124,7 @@ class BGCLD_Ajax_Handlers {
         }
         
         $quiz_id = intval($_POST['quiz_id']);
-        $next_url = $this->get_next_lesson_url($quiz_id);
+        $next_url = $this->quiz_manager->get_next_lesson_url($quiz_id);
         
         wp_send_json_success(array('next_url' => $next_url));
     }
@@ -143,15 +142,15 @@ class BGCLD_Ajax_Handlers {
         }
         
         // Get settings
-        $settings = $this->get_bytegrader_settings();
+        $settings = $this->settings->get_bytegrader_settings();
         
         if (empty($settings['server_url']) || empty($settings['api_key'])) {
             wp_send_json_error('Please save your server URL and API key first');
         }
         
         // Get server information
-        $config_result = $this->get_server_config($settings);
-        $version_result = $this->get_server_version($settings);  // This should return raw version data
+        $config_result = $this->version_checker->get_server_config($settings);
+        $version_result = $this->version_checker->get_server_version($settings);
         
         // If we can't connect at all, fail early
         if (!$config_result['success']) {
@@ -161,7 +160,7 @@ class BGCLD_Ajax_Handlers {
         // Check version compatibility if we got version info
         $compatibility_check = null;
         if ($version_result['success'] && $version_result['version']) {
-            $compatibility_check = $this->check_version_compatibility($version_result['version']);
+            $compatibility_check = $this->version_checker->check_version_compatibility($version_result['version']);
         }
         
         $response_data = array(
@@ -194,20 +193,20 @@ class BGCLD_Ajax_Handlers {
         }
         
         // Get ByteGrader settings
-        $settings = $this->get_bytegrader_settings();
+        $settings = $this->settings->get_bytegrader_settings();
         if (empty($settings['server_url']) || empty($settings['api_key'])) {
             wp_send_json_error('ByteGrader server not configured');
         }
         
         // Check status
-        $status_result = $this->check_bytegrader_status($settings, $job_id, $username);
+        $status_result = $this->bytegrader_client->check_job_status($settings, $job_id, $username);
         
         if ($status_result['success']) {
-            $parsed_status = $this->parse_job_status($status_result['data']);
+            $parsed_status = $this->bytegrader_client->parse_job_status($status_result['data']);
             
             // If job is queued, also get queue information
             if ($parsed_status['status'] === 'queued') {
-                $queue_result = $this->check_bytegrader_queue($settings, $username);
+                $queue_result = $this->bytegrader_client->check_bytegrader_queue($settings, $username);
                 if ($queue_result['success']) {
                     $parsed_status['queue_info'] = $queue_result['data'];
                 }
@@ -215,10 +214,10 @@ class BGCLD_Ajax_Handlers {
             
             // If completed, submit to LearnDash
             if ($parsed_status['status'] === 'completed' && $parsed_status['score'] !== null) {
-                $this->submit_quiz_result($user_id, $quiz_id, $parsed_status['score']);
+                $this->quiz_manager->submit_quiz_result($user_id, $quiz_id, $parsed_status['score']);
                 
                 // Store detailed attempt info for display
-                $this->store_latest_attempt(
+                $this->quiz_manager->store_latest_attempt(
                     $user_id, 
                     $quiz_id, 
                     $parsed_status['score'], 

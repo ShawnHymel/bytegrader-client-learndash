@@ -20,11 +20,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Prevent direct access
-if (!defined('ABSPATH')) {
-    exit;
-}
-
 // Plugin constants
 define('BGCLD_VERSION', '0.8.0');
 define('BGCLD_PLUGIN_URL', plugin_dir_url(__FILE__));

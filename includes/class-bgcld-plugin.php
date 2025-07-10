@@ -11,6 +11,18 @@ class BGCLD_Plugin {
     private $settings;
     private $ajax_handlers;
 
+    // (Static) Logs debug messages to the error log if debugging is enabled
+    public static function debug($msg) {
+        if (defined('BGCLD_DEBUG') && BGCLD_DEBUG) {
+            if (is_array($msg) || is_object($msg)) {
+                $msg = print_r($msg, true);
+            }
+            if (function_exists('error_log')) {
+                error_log('[BGCLD] ' . $msg);
+            }
+        }
+    }
+
     // Constructor - initialize the plugin components
     public function __construct() {
         $this->init();
@@ -62,7 +74,7 @@ class BGCLD_Plugin {
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('bgcld_upload_nonce'),
             'quiz_id' => $post->ID,
-            'debug_mode' => $this->get_debug_mode()
+            'debug_mode' => $this->settings->get_debug_mode()
         ));
     }
 

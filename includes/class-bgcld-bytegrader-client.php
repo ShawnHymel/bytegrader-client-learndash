@@ -29,7 +29,7 @@ class BGCLD_Bytegrader_Client {
         // Quick version check
         $version_check = $this->version_checker->check_compatibility($settings);
         if (!$version_check['compatible']) {
-            $this->debug("Version compatibility warning: " . $version_check['message']);
+            BGCLD_Plugin::debug("Version compatibility warning: " . $version_check['message']);
         }
         
         return $this->submit_to_bytegrader($settings, $assignment_id, $username, $file);
@@ -91,7 +91,7 @@ class BGCLD_Bytegrader_Client {
         // Build the queue endpoint URL
         $queue_url = rtrim($settings['server_url'], '/') . '/queue';
         
-        $this->debug("Checking ByteGrader queue: {$queue_url}");
+        BGCLD_Plugin::debug("Checking ByteGrader queue: {$queue_url}");
         
         // Set up headers
         $headers = array(
@@ -109,7 +109,7 @@ class BGCLD_Bytegrader_Client {
         
         // Check for errors
         if (is_wp_error($response)) {
-            $this->debug('ByteGrader queue check error: ' . $response->get_error_message());
+            BGCLD_Plugin::debug('ByteGrader queue check error: ' . $response->get_error_message());
             return array(
                 'success' => false,
                 'error' => 'Connection error: ' . $response->get_error_message()
@@ -119,8 +119,8 @@ class BGCLD_Bytegrader_Client {
         $status_code = wp_remote_retrieve_response_code($response);
         $response_body = wp_remote_retrieve_body($response);
         
-        $this->debug("ByteGrader queue response code: {$status_code}");
-        $this->debug("ByteGrader queue response body: " . $response_body);
+        BGCLD_Plugin::debug("ByteGrader queue response code: {$status_code}");
+        BGCLD_Plugin::debug("ByteGrader queue response body: " . $response_body);
         
         if ($status_code !== 200) {
             return array(
@@ -144,34 +144,22 @@ class BGCLD_Bytegrader_Client {
         );
     }
 
-    // Log debug messages
-    private function debug($msg) {
-        if (defined('BGCLD_DEBUG') && BGCLD_DEBUG) {
-            if (is_array($msg) || is_object($msg)) {
-                $msg = print_r($msg, true);
-            }
-            if (function_exists('error_log')) {
-                error_log('[BGCLD] ' . $msg);
-            }
-        }
-    }
-
     // Construct request and send project submission to ByteGrader
     private function submit_to_bytegrader($settings, $assignment_id, $username, $file) {
         
         // Quick version compatibility check before submission
-        $version_check = $this->get_server_version($settings);
+        $version_check = $this->version_checker->get_server_version($settings);
         if (!$version_check['compatible']) {
-            $this->debug("Version compatibility warning: " . $version_check['message']);
+            BGCLD_Plugin::debug("Version compatibility warning: " . $version_check['message']);
             // Log warning but continue - don't block submissions for minor version differences
         }
         
         // Build the submit endpoint URL
         $submit_url = rtrim($settings['server_url'], '/') . '/submit?assignment=' . urlencode($assignment_id);
         
-        $this->debug("Submitting to ByteGrader: {$submit_url}");
-        $this->debug("Assignment: {$assignment_id}, Username: {$username}");
-        $this->debug("File: {$file['name']}, Size: {$file['size']} bytes");
+        BGCLD_Plugin::debug("Submitting to ByteGrader: {$submit_url}");
+        BGCLD_Plugin::debug("Assignment: {$assignment_id}, Username: {$username}");
+        BGCLD_Plugin::debug("File: {$file['name']}, Size: {$file['size']} bytes");
         
         // Use WordPress's built-in cURL file upload
         $boundary = wp_generate_password(24, false);
@@ -203,8 +191,8 @@ class BGCLD_Bytegrader_Client {
             'Content-Length' => strlen($body)
         );
         
-        $this->debug("Request headers: " . print_r($headers, true));
-        $this->debug("Body length: " . strlen($body) . " bytes");
+        BGCLD_Plugin::debug("Request headers: " . print_r($headers, true));
+        BGCLD_Plugin::debug("Body length: " . strlen($body) . " bytes");
         
         // Make the request
         $response = wp_remote_post($submit_url, array(
@@ -218,7 +206,7 @@ class BGCLD_Bytegrader_Client {
         
         // Check for errors
         if (is_wp_error($response)) {
-            $this->debug('ByteGrader request error: ' . $response->get_error_message());
+            BGCLD_Plugin::debug('ByteGrader request error: ' . $response->get_error_message());
             return array(
                 'success' => false,
                 'error' => 'Connection error: ' . $response->get_error_message()
@@ -228,8 +216,8 @@ class BGCLD_Bytegrader_Client {
         $status_code = wp_remote_retrieve_response_code($response);
         $response_body = wp_remote_retrieve_body($response);
         
-        $this->debug("ByteGrader response status: {$status_code}");
-        $this->debug("ByteGrader response body: " . $response_body);
+        BGCLD_Plugin::debug("ByteGrader response status: {$status_code}");
+        BGCLD_Plugin::debug("ByteGrader response body: " . $response_body);
         
         if ($status_code !== 200) {
             return array(
@@ -260,8 +248,8 @@ class BGCLD_Bytegrader_Client {
         // Build the status endpoint URL
         $status_url = rtrim($settings['server_url'], '/') . '/status/' . urlencode($job_id);
         
-        $this->debug("Checking ByteGrader status: {$status_url}");
-        $this->debug("Job ID: {$job_id}, Username: {$username}");
+        BGCLD_Plugin::debug("Checking ByteGrader status: {$status_url}");
+        BGCLD_Plugin::debug("Job ID: {$job_id}, Username: {$username}");
         
         // Set up headers
         $headers = array(
@@ -270,7 +258,7 @@ class BGCLD_Bytegrader_Client {
             'Content-Type' => 'application/json'
         );
         
-        $this->debug("Request headers: " . print_r($headers, true));
+        BGCLD_Plugin::debug("Request headers: " . print_r($headers, true));
         
         // Make the request
         $response = wp_remote_get($status_url, array(
@@ -281,7 +269,7 @@ class BGCLD_Bytegrader_Client {
         
         // Check for errors
         if (is_wp_error($response)) {
-            $this->debug('ByteGrader status check error: ' . $response->get_error_message());
+            BGCLD_Plugin::debug('ByteGrader status check error: ' . $response->get_error_message());
             return array(
                 'success' => false,
                 'error' => 'Connection error: ' . $response->get_error_message()
@@ -291,8 +279,8 @@ class BGCLD_Bytegrader_Client {
         $status_code = wp_remote_retrieve_response_code($response);
         $response_body = wp_remote_retrieve_body($response);
         
-        $this->debug("ByteGrader status response code: {$status_code}");
-        $this->debug("ByteGrader status response body: " . $response_body);
+        BGCLD_Plugin::debug("ByteGrader status response code: {$status_code}");
+        BGCLD_Plugin::debug("ByteGrader status response body: " . $response_body);
         
         if ($status_code === 404) {
             return array(

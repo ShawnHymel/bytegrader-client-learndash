@@ -185,7 +185,7 @@ class BGCLD_Quiz_Manager {
     
     // Update user progress based on quiz results
     public function submit_quiz_result($user_id, $quiz_id, $score_percent) {
-        $this->debug("📊 Starting quiz submission for user_id: $user_id, quiz_id: $quiz_id, score: $score_percent%");
+        BGCLD_Plugin::debug("📊 Starting quiz submission for user_id: $user_id, quiz_id: $quiz_id, score: $score_percent%");
         
         // Get course ID
         $course_id = learndash_get_course_id($quiz_id);
@@ -224,9 +224,9 @@ class BGCLD_Quiz_Manager {
         if ($score_percent >= $this->get_quiz_passing_grade($quiz_id)) {
             update_user_meta($user_id, '_sfwd-quiz_completed_' . $quiz_id, time());
             learndash_process_mark_complete($user_id, $quiz_id, true, $course_id);
-            $this->debug("Quiz marked complete: user_id=$user_id, quiz_id=$quiz_id, score=$score_percent%");
+            BGCLD_Plugin::debug("Quiz marked complete: user_id=$user_id, quiz_id=$quiz_id, score=$score_percent%");
         } else {
-            $this->debug("Quiz not passed: user_id=$user_id, quiz_id=$quiz_id, score=$score_percent% (need $passing_grade%)");
+            BGCLD_Plugin::debug("Quiz not passed: user_id=$user_id, quiz_id=$quiz_id, score=$score_percent% (need $passing_grade%)");
         }
         
         return true;
@@ -245,7 +245,7 @@ class BGCLD_Quiz_Manager {
         $meta_key = '_bgcld_latest_attempt_' . $quiz_id;
         update_user_meta($user_id, $meta_key, $attempt_data);
         
-        $this->debug("Stored latest attempt for user {$user_id}, quiz {$quiz_id}: score {$score}%");
+        BGCLD_Plugin::debug("Stored latest attempt for user {$user_id}, quiz {$quiz_id}: score {$score}%");
     }
     
     // Get latest attempt details
