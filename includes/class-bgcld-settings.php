@@ -7,8 +7,19 @@ if (!defined('ABSPATH')) {
 
 class BGCLD_Settings {
 
-    // Constructor - initialize the settings, register hooks, and sets up admin menu
-    public function __construct() {
+    // Singleton instance
+    private static $instance = null;
+
+    // Get the singleton instance
+    public static function get_instance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    // Constructor - initialize the settings, register hooks, and sets up admin menu (singleton)
+    private function __construct() {
 
         // ***Debug: trace where this is being called from
         $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 10);

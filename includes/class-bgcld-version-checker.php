@@ -6,6 +6,20 @@ if (!defined('ABSPATH')) {
 
 class BGCLD_Version_Checker {
 
+    // Singleton instance
+    private static $instance = null;
+
+    // Get the singleton instance
+    public static function get_instance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    // Private constructor to prevent direct instantiation
+    private function __construct() {}
+
     // Get configuration settings from the server
     public function get_server_config($settings) {
         $config_url = rtrim($settings['server_url'], '/') . '/config';

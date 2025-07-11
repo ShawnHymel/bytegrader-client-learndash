@@ -7,11 +7,12 @@ if (!defined('ABSPATH')) {
 
 class BGCLD_Plugin {
 
-    // Singleton instance
-    private static $instance = null;
     private $quiz_manager;
     private $settings;
     private $ajax_handlers;
+
+    // Singleton instance
+    private static $instance = null;
 
     // (Static) Logs debug messages to the error log if debugging is enabled
     public static function debug($msg) {
@@ -25,7 +26,15 @@ class BGCLD_Plugin {
         }
     }
 
-    // Constructor - initialize the plugin components (private = singleton pattern)
+    // S// Get the singleton instance
+    public static function get_instance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    // Constructor - initialize the plugin components (singleton)
     private function __construct() {
 
         // ***Debug: trace plugin instantiation
@@ -39,21 +48,13 @@ class BGCLD_Plugin {
         }
 
         // Initialize components
-        $this->quiz_manager = new BGCLD_Quiz_Manager();
-        $this->settings = new BGCLD_Settings();
-        $this->ajax_handlers = new BGCLD_Ajax_Handlers();
+        $this->quiz_manager = BGCLD_Quiz_Manager::get_instance();
+        $this->settings = BGCLD_Settings::get_instance();
+        $this->ajax_handlers = BGCLD_Ajax_Handlers::get_instance();
         
         // Core hooks
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
         add_filter('plugin_action_links_' . plugin_basename(BGCLD_PLUGIN_FILE), array($this, 'add_plugin_action_links'));
-    }
-
-    // Singleton pattern to prevent multiple instances
-    public static function get_instance() {
-        if (self::$instance === null) {
-            self::$instance = new self();
-        }
-        return self::$instance;
     }
     
     // Load assets for the plugin

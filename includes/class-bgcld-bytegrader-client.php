@@ -8,11 +8,22 @@ class BGCLD_Bytegrader_Client {
 
     private $settings;
     private $version_checker;
+
+    // Singleton instance
+    private static $instance = null;
+
+    // Get the singleton instance
+    public static function get_instance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
     
     // Constructor - initialize settings and version checker
-    public function __construct() {
-        $this->settings = new BGCLD_Settings();
-        $this->version_checker = new BGCLD_Version_Checker();
+    private function __construct() {
+        $this->settings = BGCLD_Settings::get_instance();
+        $this->version_checker = BGCLD_Version_Checker::get_instance();
     }
 
     // Wrapper for submitting a project to ByteGrader

@@ -10,16 +10,28 @@ class BGCLD_Ajax_Handlers {
     private $quiz_manager;
     private $version_checker;
     private $settings;
-    
-    public function __construct() {
+
+    // Singleton instance
+    private static $instance = null;
+
+    // Get the singleton instance
+    public static function get_instance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    // Private constructor to prevent direct instantiation
+    private function __construct() {
 
         // ***Debug: trace AJAX handlers instantiation
         error_log('[BGCLD] BGCLD_Ajax_Handlers constructor called');
 
-        $this->bytegrader_client = new BGCLD_Bytegrader_Client();
-        $this->quiz_manager = new BGCLD_Quiz_Manager();
-        $this->version_checker = new BGCLD_Version_Checker();
-        $this->settings = new BGCLD_Settings();
+        $this->bytegrader_client = BGCLD_Bytegrader_Client::get_instance();
+        $this->quiz_manager = BGCLD_Quiz_Manager::get_instance();
+        $this->version_checker = BGCLD_Version_Checker::get_instance();
+        $this->settings = BGCLD_Settings::get_instance();
         
         // Register AJAX handlers
         add_action('wp_ajax_bgcld_upload_project', array($this, 'handle_project_upload'));

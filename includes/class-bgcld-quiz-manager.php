@@ -8,9 +8,20 @@ class BGCLD_Quiz_Manager {
     
     const DEFAULT_PASSING_GRADE = 80;
     const DEFAULT_MAX_FILE_SIZE_MB = 10;
+
+    // Singleton instance
+    private static $instance = null;
+
+    // Get the singleton instance
+    public static function get_instance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
     
-    // Constructor - initialize hooks and actions
-    public function __construct() {
+    // Constructor - initialize hooks and actions (singleton)
+    private function __construct() {
         add_action('add_meta_boxes', array($this, 'add_quiz_meta_boxes'));
         add_action('save_post', array($this, 'save_quiz_meta'));
         add_action('wp', array($this, 'maybe_hijack_quiz'));
