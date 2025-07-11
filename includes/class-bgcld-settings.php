@@ -20,18 +20,6 @@ class BGCLD_Settings {
 
     // Constructor - initialize the settings, register hooks, and sets up admin menu (singleton)
     private function __construct() {
-
-        // ***Debug: trace where this is being called from
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 10);
-        error_log('[BGCLD] BGCLD_Settings constructor called from:');
-        foreach ($backtrace as $i => $trace) {
-            $file = isset($trace['file']) ? basename($trace['file']) : 'unknown';
-            $line = isset($trace['line']) ? $trace['line'] : 'unknown';
-            $function = isset($trace['function']) ? $trace['function'] : 'unknown';
-            $class = isset($trace['class']) ? $trace['class'] : '';
-            error_log("  [$i] $class::$function() in $file:$line");
-        }
-
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
     }

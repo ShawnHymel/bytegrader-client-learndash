@@ -38,9 +38,12 @@ class BGCLD_Bytegrader_Client {
         }
         
         // Quick version check
-        $version_check = $this->version_checker->check_compatibility($settings);
-        if (!$version_check['compatible']) {
-            BGCLD_Plugin::debug("Version compatibility warning: " . $version_check['message']);
+        $version_result = $this->version_checker->get_server_version($settings);
+        if ($version_result['success'] && $version_result['version']) {
+            $version_check = $this->version_checker->check_version_compatibility($version_result['version']);
+            if (!$version_check['compatible']) {
+                BGCLD_Plugin::debug("Version compatibility warning: " . $version_check['message']);
+            }
         }
         
         return $this->submit_to_bytegrader($settings, $assignment_id, $username, $file);
@@ -159,10 +162,13 @@ class BGCLD_Bytegrader_Client {
     private function submit_to_bytegrader($settings, $assignment_id, $username, $file) {
         
         // Quick version compatibility check before submission
-        $version_check = $this->version_checker->get_server_version($settings);
-        if (!$version_check['compatible']) {
-            BGCLD_Plugin::debug("Version compatibility warning: " . $version_check['message']);
-            // Log warning but continue - don't block submissions for minor version differences
+        $version_result = $this->version_checker->get_server_version($settings);
+        if ($version_result['success'] && $version_result['version']) {
+            $version_check = $this->version_checker->check_version_compatibility($version_result['version']);
+            if (!$version_check['compatible']) {
+                BGCLD_Plugin::debug("Version compatibility warning: " . $version_check['message']);
+                // Log warning but continue - don't block submissions for minor version differences
+            }
         }
         
         // Build the submit endpoint URL

@@ -25,9 +25,6 @@ class BGCLD_Ajax_Handlers {
     // Private constructor to prevent direct instantiation
     private function __construct() {
 
-        // ***Debug: trace AJAX handlers instantiation
-        error_log('[BGCLD] BGCLD_Ajax_Handlers constructor called');
-
         $this->bytegrader_client = BGCLD_Bytegrader_Client::get_instance();
         $this->quiz_manager = BGCLD_Quiz_Manager::get_instance();
         $this->version_checker = BGCLD_Version_Checker::get_instance();

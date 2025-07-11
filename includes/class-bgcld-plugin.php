@@ -26,7 +26,7 @@ class BGCLD_Plugin {
         }
     }
 
-    // S// Get the singleton instance
+    // Get the singleton instance
     public static function get_instance() {
         if (self::$instance === null) {
             self::$instance = new self();
@@ -36,17 +36,7 @@ class BGCLD_Plugin {
 
     // Constructor - initialize the plugin components (singleton)
     private function __construct() {
-
-        // ***Debug: trace plugin instantiation
-        error_log('[BGCLD] BGCLD_Plugin constructor called');
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5);
-        foreach ($backtrace as $i => $trace) {
-            $file = isset($trace['file']) ? basename($trace['file']) : 'unknown';
-            $line = isset($trace['line']) ? $trace['line'] : 'unknown';
-            $function = isset($trace['function']) ? $trace['function'] : 'unknown';
-            error_log("  [$i] $function() in $file:$line");
-        }
-
+        
         // Initialize components
         $this->quiz_manager = BGCLD_Quiz_Manager::get_instance();
         $this->settings = BGCLD_Settings::get_instance();
