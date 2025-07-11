@@ -211,14 +211,14 @@ class BGCLD_Ajax_Handlers {
         }
         
         // Check status
-        $status_result = $this->bytegrader_client->check_job_status($settings, $job_id, $username);
+        $status_result = $this->bytegrader_client->check_job_status($job_id, $username);
         
         if ($status_result['success']) {
             $parsed_status = $this->bytegrader_client->parse_job_status($status_result['data']);
             
             // If job is queued, also get queue information
             if ($parsed_status['status'] === 'queued') {
-                $queue_result = $this->bytegrader_client->check_bytegrader_queue($settings, $username);
+                $queue_result = $this->bytegrader_client->check_bytegrader_queue($username);
                 if ($queue_result['success']) {
                     $parsed_status['queue_info'] = $queue_result['data'];
                 }

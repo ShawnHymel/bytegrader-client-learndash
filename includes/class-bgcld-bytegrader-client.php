@@ -100,7 +100,8 @@ class BGCLD_Bytegrader_Client {
     }
 
     // Check ByteGrader queue status
-    public function check_bytegrader_queue($settings, $username) {
+    public function check_bytegrader_queue($username) {
+        $settings = $this->settings->get_bytegrader_settings();
 
         // Build the queue endpoint URL
         $queue_url = rtrim($settings['server_url'], '/') . '/queue';
