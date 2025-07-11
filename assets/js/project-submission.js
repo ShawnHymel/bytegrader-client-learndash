@@ -217,12 +217,12 @@ jQuery(document).ready(function($) {
         const statusDiv = $('.bgcld-status');
         const statusMsg = $('.bgcld-message');
         
-        statusDiv.removeClass('processing').addClass('success');
+        statusDiv.removeClass('processing').addClass('neutral');
         
         // Remove warning immediately when completed
         removeBrowserExitWarning();
         
-        let html = `✅ Grading completed in ${elapsedSeconds} seconds!<br>`;
+        let html = `Grading completed in ${elapsedSeconds} seconds!<br>`;
         html += `<strong>Score: ${jobData.score}%</strong>`;
         html += `<br><br><small style="color: #666;">The page will update to show your results and detailed feedback.</small>`;
         
