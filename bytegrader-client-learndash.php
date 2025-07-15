@@ -3,7 +3,7 @@
  * Plugin Name: ByteGrader Client for LearnDash
  * Plugin URI: https://github.com/ShawnHymel/bytegrader-client-learndash
  * Description: Integrates ByteGrader autograding service with LearnDash LMS for automated code assessment
- * Version: 0.8.2
+ * Version: 0.8.3
  * Author: Shawn Hymel
  * Author URI: https://shawnhymel.com
  * License: MIT
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Plugin constants
-define('BGCLD_VERSION', '0.8.2');
+define('BGCLD_VERSION', '0.8.3');
 define('BGCLD_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('BGCLD_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('BGCLD_PLUGIN_FILE', __FILE__);
@@ -29,7 +29,7 @@ define('BGCLD_PLUGIN_FILE', __FILE__);
 // ByteGrader server version compatibility
 define('BGCLD_MIN_BYTEGRADER_VERSION', '0.8.0');
 define('BGCLD_MAX_BYTEGRADER_VERSION', '0.9.999');
-define('BGCLD_TESTED_BYTEGRADER_VERSION', '0.8.1');
+define('BGCLD_TESTED_BYTEGRADER_VERSION', '0.8.3');
 
 // Autoloader
 spl_autoload_register(function ($class_name) {

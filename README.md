@@ -113,7 +113,7 @@ Debug logs will appear in `/wp-content/debug.log` and show ByteGrader submission
 1. Choose appropriate version number using [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 2. Update **bytegrader-client-learndash.php** in the following places in :
     1. Header: `Version: X.Y.Z`
-    2. Constant: `define('BGCLD_VERSION', '0.8.0');`
+    2. Constant: `define('BGCLD_VERSION', 'X.Y.Z');`
     3. Make sure that the ByteGrader version compatibility is up to date
 3. Update **VERSION** file with new version number
 4. Update **CHANGELOG.md**, assign new version number to the section
@@ -121,7 +121,7 @@ Debug logs will appear in `/wp-content/debug.log` and show ByteGrader submission
 
 ```sh
 git add --all
-git commit -m "Prepare release vX.Y.Z"`
+git commit -m "Prepare release vX.Y.Z"
 git push origin main
 ```
 
