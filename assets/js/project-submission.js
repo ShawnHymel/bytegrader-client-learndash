@@ -11,7 +11,6 @@ jQuery(document).ready(function($) {
     let pollingStartTime = null;
     let pollingAttempts = 0;
     let beforeUnloadHandler = null;
-    const MAX_POLLING_ATTEMPTS = 60; // 5 minutes at 5-second intervals
     const POLLING_INTERVAL_MS = 5000; // 5 seconds
     
     // Debug wrapper function
@@ -114,12 +113,6 @@ jQuery(document).ready(function($) {
                 console.error('❌ Status check failed:', error);
                 const statusMsg = $('.bgcld-message');
                 statusMsg.html(`⚠️ Connection error while checking status. Retrying...`);
-                
-                // Continue polling unless we've exceeded max attempts
-                if (pollingAttempts >= MAX_POLLING_ATTEMPTS) {
-                    stopPolling();
-                    showFinalError('Status check failed after multiple attempts. Please refresh and try again.');
-                }
             }
         });
     }
@@ -203,12 +196,6 @@ jQuery(document).ready(function($) {
             default:
                 statusMsg.html(`❓ Unknown status: ${status} (${elapsedSeconds}s elapsed)`);
                 break;
-        }
-        
-        // Stop polling if we've exceeded max attempts
-        if (pollingAttempts >= MAX_POLLING_ATTEMPTS) {
-            stopPolling();
-            showFinalError('Grading is taking longer than expected. Please refresh the page to check your results.');
         }
     }
     
